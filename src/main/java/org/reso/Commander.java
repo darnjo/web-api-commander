@@ -32,8 +32,18 @@ import org.apache.olingo.commons.api.format.ContentType;
 import org.apache.olingo.server.api.serializer.EdmAssistedSerializer;
 import org.apache.olingo.server.core.ServiceMetadataImpl;
 import org.apache.olingo.server.core.serializer.xml.MetadataDocumentXmlSerializer;
+import org.w3c.dom.Document;
+import org.xml.sax.SAXException;
+import org.xml.sax.SAXParseException;
 import sun.tools.jar.CommandLine;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
 import java.io.*;
 import java.net.URI;
 import java.nio.Buffer;
@@ -52,7 +62,8 @@ public class Commander {
    */
   public Commander(String serviceRoot) {
     this.serviceRoot = serviceRoot;
-    client = ODataClientFactory.getClient();
+//    client = ODataClientFactory.getClient();
+    client = ODataClientFactory.getEdmEnabledClient(serviceRoot);
   }
 
   /**
@@ -90,17 +101,25 @@ public class Commander {
     return null;
   }
 
+  /**
+   * Validates the given metadata at the given file path name.
+   * @param pathname the path name to look for the metadata in.
+   * @return true if the metadata is valid and false otherwise.
+   */
   public boolean validateMetadata(String pathname) {
     try {
       XMLMetadata metadata = client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(new FileInputStream(pathname));
-      return client.metadataValidation().isServiceDocument(metadata)
-        && client.metadataValidation().isV4Metadata(metadata);
+      return client.metadataValidation().isServiceDocument(metadata) && client.metadataValidation().isV4Metadata(metadata);
     } catch (Exception ex) {
       log.error(ex.getMessage());
     }
     return false;
   }
 
+  /**
+   * Writes the given entity set to the given path name, or throws an exception if that Entity cannot be found at the given uri.
+   * @param uri the URI used to search for that entity.
+   */
   public void getEntitySet(String uri) {
     try {
       ODataEntitySetRequest<ClientEntitySet> entitySetRequest = client.getRetrieveRequestFactory().getEntitySetRequest(URI.create(uri));
@@ -115,7 +134,6 @@ public class Commander {
     } catch (Exception ex) {
       log.error(ex.toString());
     }
-
   }
 
   /**
@@ -133,8 +151,22 @@ public class Commander {
     return entitySetResponse.getBody();
   }
 
+  public void convertMetadata(String pathToEDMX) {
+    try {
+      TransformerFactory factory = TransformerFactory.newInstance();
+      Source xslt = new StreamSource(new File("./V4-CSDL-to-OpenAPI.xslt"));
+      Transformer transformer = factory.newTransformer(xslt);
+
+      Source text = new StreamSource(new File(pathToEDMX));
+      transformer.transform(text, new StreamResult(new File(pathToEDMX + ".transformed.json")));
+
+    } catch (Exception ex) {
+      log.error(ex.toString());
+    }
+  }
+
   /**
-   *
+   * Writes an Entity Set to the given filename.
    * @param entitySet
    */
   private void serializeEntitySet(ClientEntitySet entitySet) {
@@ -148,8 +180,6 @@ public class Commander {
     } catch (ODataSerializerException osx) {
       System.out.println(osx.getMessage());
     }
-
-
   }
 
 }

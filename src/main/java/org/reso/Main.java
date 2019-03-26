@@ -43,13 +43,13 @@ public class Main {
     String serviceRoot, bearerToken, wellKnownResourceName;
 
     //working
-    serviceRoot = "https://rets.io/api/v2/OData/har";
-    bearerToken = "887da184c3b60d9d7b80ea975bb1db98";
-    wellKnownResourceName = "Media";
+//    serviceRoot = "https://rets.io/api/v2/OData/har";
+//    bearerToken = "887da184c3b60d9d7b80ea975bb1db98";
+//    wellKnownResourceName = "Media";
 
-//    serviceRoot = "http://rts-api.mlsgrid.com/";
-//    bearerToken = "64ed09cc5876671fec76776232213f96fc40d4eb";
-//    wellKnownResourceName = "PropertyResi";
+    serviceRoot = "http://rts-api.mlsgrid.com/";
+    bearerToken = "64ed09cc5876671fec76776232213f96fc40d4eb";
+    wellKnownResourceName = "PropertyResi";
 
       //not working - bad metadata
 //    serviceRoot = "https://rets.io/api/v2/OData/";
@@ -95,9 +95,13 @@ public class Main {
           s.getEnumTypes().stream().forEach(t -> log.info("\tEnum Type: " + t.getFullQualifiedName().getFullQualifiedNameAsString()));
           s.getEntityTypes().stream().forEach(t -> log.info("\tEntity Type: " + t.getFullQualifiedName().getFullQualifiedNameAsString()));
           s.getComplexTypes().stream().forEach(t -> log.info("\tComplex Entity Type: " + t.getFullQualifiedName().getFullQualifiedNameAsString()));
+          s.getAnnotationGroups().stream().forEach(a -> log.info("\tAnnotations: " + a.getQualifier()));
         });
 
       } else if (cmd.hasOption("readEntities")) {
+
+        ClientEntitySet entities = commander.readEntities("PropertyResi");
+        System.out.println(entities.getEntities().stream().map(e -> e.toString()));
 
       } else if (cmd.hasOption("validateMetadata")) {
         String inputFile = cmd.getOptionValue("inputFile");
@@ -110,54 +114,27 @@ public class Main {
 
       } else if (cmd.hasOption("getURI")) {
         try {
-          String expr = "https://rets.io/api/v2/OData/har/Property?$filter=ListPrice%20gt%201000";
+          String expr = "https://rets.io/api/v2/OData/har/Property?$select=ListPrice&$top=10&$filter=ListPrice%20gt%201000";
           commander.getEntitySet(expr);
         } catch (Exception ex) {
           log.error(ex.toString());
         }
 
-      } else if (cmd.hasOption("validateMetadata")) {
-
       } else if (cmd.hasOption("convertEDMXtoOAI")) {
-
+        String inputFile = cmd.getOptionValue("inputFile");
+//        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_BKFSWS103_BlackKnight.xml");
+//        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_CorLogicTrestle_Gene_CoreLogicTrestle.xml");
+//        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_ITechMLS_Rapattoni_Formatted.xml");
+//        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_MLSGrid_MLSGrid.xml");
+//        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_MLSGrid_MLSGrid_Formatted.xml");
+//        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_MLSHawaiiInc_Hawaii_IS.xml");
+//        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_NC_362_N_CENTRAL_MS__Navica.xml");
+//        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_SomersetLakeCumberla_FBS.xml");
+//        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_UREA_Utah Real Estate.xml");
       }
-    }
-    catch( ParseException exp ) {
+    } catch( ParseException exp ) {
       System.out.println( "Unexpected exception:" + exp.getMessage() );
     }
-
-
-//
-//      do {
-//        // Reading data using readLine
-//        String input = reader.readLine();
-//        switch (input) {
-//          case "1":
-//            task = TASK.GET_METADATA;
-//
-//            System.out.println("Metadata is: " + app.getMetadata().toString());
-//
-//          case "2":
-//            task = TASK.READ_ENTITIES;
-//
-//            ClientEntitySet entities = app.readEntities(wellKnownResourceName);
-//            System.out.println(entities.getEntities().stream().map(e -> e.toString()));
-//
-//          case "3":
-//            task = TASK.EXECUTE_URI;
-//          case "4":
-//            task = TASK.VALIDATE_METADATA;
-//          case "5":
-//            task = TASK.CONVERT_EDMX_TO_OAI;
-//          case "q": case "Q":
-//            task = TASK.QUIT;
-//        }
-//
-//      } while (task != TASK.QUIT);
-//
-//    } catch (Exception ex) {
-//      System.err.println(ex.toString());
-//    }
   }
 
 
