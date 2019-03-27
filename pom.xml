@@ -115,12 +115,14 @@
             <version>3.1.7</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/org.apache.olingo/odata-commons-api -->
         <dependency>
             <groupId>org.apache.olingo</groupId>
-            <artifactId>olingo-commons-api</artifactId>
-            <version>4.0.0-beta-01-SNAPSHOT</version>
+            <artifactId>odata-commons-api</artifactId>
+            <version>4.5.0</version>
         </dependency>
-    </dependencies>
+
+</dependencies>
 
     
 </project>

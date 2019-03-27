@@ -1,53 +1,29 @@
 package org.reso;
 
-import jdk.internal.util.xml.impl.XMLWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.output.WriterOutputStream;
-import org.apache.commons.vfs2.FileUtil;
 import org.apache.log4j.Logger;
-import org.apache.olingo.client.api.EdmEnabledODataClient;
 import org.apache.olingo.client.api.ODataClient;
-import org.apache.olingo.client.api.communication.request.retrieve.EdmMetadataRequest;
 import org.apache.olingo.client.api.communication.request.retrieve.ODataEntitySetRequest;
 import org.apache.olingo.client.api.communication.request.retrieve.XMLMetadataRequest;
-import org.apache.olingo.client.api.communication.response.ODataResponse;
 import org.apache.olingo.client.api.communication.response.ODataRetrieveResponse;
-import org.apache.olingo.client.api.data.ResWrap;
-import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
 import org.apache.olingo.client.api.serialization.ODataSerializer;
 import org.apache.olingo.client.api.serialization.ODataSerializerException;
-import org.apache.olingo.client.api.uri.URIBuilder;
-import org.apache.olingo.client.core.EdmEnabledODataClientImpl;
 import org.apache.olingo.client.core.ODataClientFactory;
-import org.apache.olingo.client.core.ODataClientImpl;
-import org.apache.olingo.client.core.edm.ClientCsdlXMLMetadata;
-import org.apache.olingo.client.core.edm.xml.ClientCsdlEdmx;
 import org.apache.olingo.client.core.serialization.JsonEntitySetSerializer;
-import org.apache.olingo.commons.api.data.EntitySet;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
-import org.apache.olingo.server.api.serializer.EdmAssistedSerializer;
-import org.apache.olingo.server.core.ServiceMetadataImpl;
-import org.apache.olingo.server.core.serializer.xml.MetadataDocumentXmlSerializer;
-import org.w3c.dom.Document;
-import org.xml.sax.SAXException;
-import org.xml.sax.SAXParseException;
 import sun.tools.jar.CommandLine;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.*;
-import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.Source;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import java.io.*;
 import java.net.URI;
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
 
 public class Commander {
   private ODataClient client;

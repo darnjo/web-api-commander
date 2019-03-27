@@ -3,27 +3,8 @@ package org.reso;
 
 import org.apache.commons.cli.*;
 import org.apache.log4j.Logger;
-import org.apache.olingo.client.api.ODataClient;
-import org.apache.olingo.client.api.data.ResWrap;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
-import org.apache.olingo.client.api.serialization.ODataReader;
-import org.apache.olingo.client.api.serialization.ODataSerializer;
-import org.apache.olingo.client.api.serialization.ODataSerializerException;
-import org.apache.olingo.client.core.edm.xml.ClientCsdlEdmx;
-import org.apache.olingo.client.core.serialization.ODataReaderImpl;
 import org.apache.olingo.commons.api.edm.Edm;
-import org.apache.olingo.commons.api.edm.EdmServiceMetadata;
-import org.apache.olingo.commons.api.edm.provider.CsdlSchema;
-import org.apache.olingo.commons.api.format.ContentType;
-import org.apache.olingo.server.api.OData;
-import org.slf4j.LoggerFactory;
-
-import java.io.BufferedReader;
-import java.io.FileWriter;
-import java.io.InputStreamReader;
-import java.io.Writer;
-import java.net.URI;
-import java.net.URLEncoder;
 
 public class Main {
 
