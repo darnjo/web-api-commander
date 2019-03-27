@@ -62,8 +62,8 @@ public class Commander {
    */
   public Commander(String serviceRoot) {
     this.serviceRoot = serviceRoot;
-//    client = ODataClientFactory.getClient();
-    client = ODataClientFactory.getEdmEnabledClient(serviceRoot);
+    client = ODataClientFactory.getClient();
+//    client = ODataClientFactory.getEdmEnabledClient(serviceRoot);
   }
 
   /**
@@ -81,7 +81,7 @@ public class Commander {
    * Gets server metadata in EDMX format.
    * @return Edm representation of the server metadata.
    */
-  public Edm getMetadata(String pathname) {
+  public Edm getMetadata(String outputFileName) {
     XMLMetadataRequest request = client.getRetrieveRequestFactory().getXMLMetadataRequest(serviceRoot);
 
     try {
@@ -91,7 +91,7 @@ public class Commander {
       log.info("Received metadata!");
 
       log.info("Writing metadata to file...");
-      FileUtils.writeByteArrayToFile(new File(pathname), baos.toByteArray());
+      FileUtils.writeByteArrayToFile(new File(outputFileName), baos.toByteArray());
       log.info("File written!");
 
       return client.getReader().readMetadata(new ByteArrayInputStream(baos.toByteArray()));
@@ -103,15 +103,17 @@ public class Commander {
 
   /**
    * Validates the given metadata at the given file path name.
-   * @param pathname the path name to look for the metadata in.
+   * @param metadataFileName the path name to look for the metadata in.
    * @return true if the metadata is valid and false otherwise.
    */
-  public boolean validateMetadata(String pathname) {
+  public boolean validateMetadata(String metadataFileName) {
     try {
-      XMLMetadata metadata = client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(new FileInputStream(pathname));
+      XMLMetadata metadata = client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(new FileInputStream(metadataFileName));
       return client.metadataValidation().isServiceDocument(metadata) && client.metadataValidation().isV4Metadata(metadata);
     } catch (Exception ex) {
       log.error(ex.getMessage());
+      //TODO
+      //log.error(ex.getCause().getMessage());
     }
     return false;
   }

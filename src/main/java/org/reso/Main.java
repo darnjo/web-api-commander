@@ -32,8 +32,7 @@ public class Main {
     READ_ENTITIES,
     EXECUTE_URI,
     VALIDATE_METADATA,
-    CONVERT_EDMX_TO_OAI,
-    QUIT
+    CONVERT_EDMX_TO_OAI
   }
 
   private static final Logger log = Logger.getLogger(Main.class);
@@ -54,6 +53,7 @@ public class Main {
       //not working - bad metadata
 //    serviceRoot = "https://rets.io/api/v2/OData/";
 //    bearerToken = "fbee0196c78d575b1b81d27d03290a1e";
+//    wellKnownResourceName = "Property";
 
 //    serviceRoot = "http://retswebapi.raprets.com/BAK/RESO/odata/";
 //    bearerToken = "684b0e328cb4420e9d5bfa119f79164a";
@@ -71,6 +71,7 @@ public class Main {
     CommandLineParser parser = new DefaultParser();
     Options options = getOptions();
 
+    // create a new Web API Commander instance
     Commander commander = new Commander(serviceRoot, bearerToken);
     Edm metadata;
 
@@ -100,7 +101,7 @@ public class Main {
 
       } else if (cmd.hasOption("readEntities")) {
 
-        ClientEntitySet entities = commander.readEntities("PropertyResi");
+        ClientEntitySet entities = commander.readEntities(wellKnownResourceName);
         System.out.println(entities.getEntities().stream().map(e -> e.toString()));
 
       } else if (cmd.hasOption("validateMetadata")) {
@@ -114,7 +115,7 @@ public class Main {
 
       } else if (cmd.hasOption("getURI")) {
         try {
-          String expr = "https://rets.io/api/v2/OData/har/Property?$select=ListPrice&$top=10&$filter=ListPrice%20gt%201000";
+          String expr = "https://rets.io/api/v2/OData/har/Property?$top=10&$filter=ListPrice%20gt%201000";
           commander.getEntitySet(expr);
         } catch (Exception ex) {
           log.error(ex.toString());
@@ -131,6 +132,8 @@ public class Main {
 //        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_NC_362_N_CENTRAL_MS__Navica.xml");
 //        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_SomersetLakeCumberla_FBS.xml");
 //        works - commander.convertMetadata("./REQ-WA103-END3_Metadata_UREA_Utah Real Estate.xml");
+
+        commander.convertMetadata("./metadata/REQ-WA103-END3_Metadata_UREA_Utah Real Estate.xml");
       }
     } catch( ParseException exp ) {
       System.out.println( "Unexpected exception:" + exp.getMessage() );
