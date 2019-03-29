@@ -1,6 +1,5 @@
 package org.reso;
 
-
 import org.apache.commons.cli.*;
 import org.apache.log4j.Logger;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
