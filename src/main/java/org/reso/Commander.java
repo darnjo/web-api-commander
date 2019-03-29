@@ -56,7 +56,9 @@ public class Commander {
   public Commander(String serviceRoot, boolean useEdmEnabledClient) {
     this.serviceRoot = serviceRoot;
     log.info("Using EdmEnabledClient: " + useEdmEnabledClient);
-    client = useEdmEnabledClient ? ODataClientFactory.getEdmEnabledClient(serviceRoot) : ODataClientFactory.getClient();
+    client = useEdmEnabledClient ?
+        ODataClientFactory.getEdmEnabledClient(serviceRoot)
+        : ODataClientFactory.getClient();
   }
 
   /**
@@ -173,7 +175,7 @@ public class Commander {
 
     //limit result to limit as we may have paged further than needed
     ClientEntitySet val = new ClientEntitySetImpl();
-    val.getEntities().addAll(result.subList(0, limit > 0 ? limit : result.size()));
+    val.getEntities().addAll(result.subList(0, result.size()));
     return val;
   }
 

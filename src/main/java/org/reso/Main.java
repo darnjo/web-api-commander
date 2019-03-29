@@ -24,18 +24,19 @@ public class Main {
     String serviceRoot, bearerToken, entityName;
 
     //working
-//    serviceRoot = "https://rets.io/api/v2/OData/har";
-//    bearerToken = "887da184c3b60d9d7b80ea975bb1db98";
-//    entityName = "Media";
-//
+    serviceRoot = "https://rets.io/api/v2/OData/har";
+    bearerToken = "887da184c3b60d9d7b80ea975bb1db98";
+    entityName = "Media";
 
+
+    //problem with next links, they don't have skip in the correct place
 //    serviceRoot = "http://rts-api.mlsgrid.com/";
 //    bearerToken = "64ed09cc5876671fec76776232213f96fc40d4eb";
 //    entityName = "PropertyResi";
 
-    serviceRoot = "http://rapitest.realcomp.com/odata";
-    bearerToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Ik16aEdRa05GUkRKRk5qYzBRamxHTkVWRE1Ua3lSRUUzUVRsQ09EWTVNMEkyTlRKRFFUVTFNdyJ9.eyJpc3MiOiJodHRwczovL3JlYWxjb21wYXBpLmF1dGgwLmNvbS8iLCJzdWIiOiI4UnozcDIyR084Mkp0cnh4bjJWVVFUV1ltNGN4SXllZkBjbGllbnRzIiwiYXVkIjoicmFwaS5yZWFsY29tcC5jb20iLCJpYXQiOjE1NTIzMjM4NTEsImV4cCI6MTU1MjQxMDI1MSwiYXpwIjoiOFJ6M3AyMkdPODJKdHJ4eG4yVlVRVFdZbTRjeEl5ZWYiLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMifQ.lNeMb4KM3Q2exvDMseVfczaakHB3IbiM2_QcrcECWzPtNjTy0q8xQwgBnEZvYfNUERNYkupSj4NXnmJWTW3moB_-L6AFujfn3iSBspLTdUmyV8ffk-NQkeAPKsf5Dhu8fmpsNEeNmZ04-1frZzlbzqx3dDG0rsV85M3VXMvPaGpwc1_wgKv5M2TmGZYRdOw4ASVI3pMElpldygnct3cL6CXbZb0Xq0tmwZhXuv06SMeHqoRyeqaUah5z1UELpVGyxgZK1AfsOGlssJ2iZGUXt47mvdPcsh_u8fA8mW2Y7lQW84y6Nb1Z9rp0L86VNX-Mg5UORCp8r3LfEv7aAMoAZA";
-    entityName = "Property";
+//    serviceRoot = "http://rapitest.realcomp.com/odata";
+//    bearerToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Ik16aEdRa05GUkRKRk5qYzBRamxHTkVWRE1Ua3lSRUUzUVRsQ09EWTVNMEkyTlRKRFFUVTFNdyJ9.eyJpc3MiOiJodHRwczovL3JlYWxjb21wYXBpLmF1dGgwLmNvbS8iLCJzdWIiOiI4UnozcDIyR084Mkp0cnh4bjJWVVFUV1ltNGN4SXllZkBjbGllbnRzIiwiYXVkIjoicmFwaS5yZWFsY29tcC5jb20iLCJpYXQiOjE1NTIzMjM4NTEsImV4cCI6MTU1MjQxMDI1MSwiYXpwIjoiOFJ6M3AyMkdPODJKdHJ4eG4yVlVRVFdZbTRjeEl5ZWYiLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMifQ.lNeMb4KM3Q2exvDMseVfczaakHB3IbiM2_QcrcECWzPtNjTy0q8xQwgBnEZvYfNUERNYkupSj4NXnmJWTW3moB_-L6AFujfn3iSBspLTdUmyV8ffk-NQkeAPKsf5Dhu8fmpsNEeNmZ04-1frZzlbzqx3dDG0rsV85M3VXMvPaGpwc1_wgKv5M2TmGZYRdOw4ASVI3pMElpldygnct3cL6CXbZb0Xq0tmwZhXuv06SMeHqoRyeqaUah5z1UELpVGyxgZK1AfsOGlssJ2iZGUXt47mvdPcsh_u8fA8mW2Y7lQW84y6Nb1Z9rp0L86VNX-Mg5UORCp8r3LfEv7aAMoAZA";
+//    entityName = "Property";
 
       //not working - bad metadata
 //    serviceRoot = "https://rets.io/api/v2/OData/";
@@ -113,7 +114,7 @@ public class Main {
 
       } else if (cmd.hasOption("getURI")) {
         try {
-          String expr = "https://rets.io/api/v2/OData/har/Property?$top=10&$filter=ListPrice%20gt%201000";
+          String expr = "https://rets.io/api/v2/OData/har/Property?$filter=ListPrice%20gt%201000";
           commander.getEntitySet(expr);
         } catch (Exception ex) {
           log.error(ex.toString());
