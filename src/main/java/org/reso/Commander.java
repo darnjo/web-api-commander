@@ -10,11 +10,12 @@ import org.apache.olingo.client.api.communication.response.ODataRetrieveResponse
 import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
+import org.apache.olingo.client.api.serialization.ODataSerializer;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
-import sun.tools.jar.CommandLine;
+import org.apache.olingo.server.core.serializer.json.ODataJsonSerializer;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
@@ -23,6 +24,7 @@ import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import java.io.*;
 import java.net.URI;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,7 +38,7 @@ public class Commander {
   private String serviceRoot;
   private String bearerToken;
 
-  private static final Logger log = Logger.getLogger(CommandLine.class);
+  private static final Logger log = Logger.getLogger(Commander.class);
 
   /**
    * Creates a Commander instance that uses the normal OData client.
@@ -136,12 +138,16 @@ public class Commander {
       ODataEntitySetRequest<ClientEntitySet> entitySetRequest
           = client.getRetrieveRequestFactory().getEntitySetRequest(requestURI);
 
-      ByteArrayOutputStream response = new ByteArrayOutputStream();
-      IOUtils.copy(entitySetRequest.rawExecute(), response);
+//      ByteArrayOutputStream response = new ByteArrayOutputStream();
+      ODataRetrieveResponse<ClientEntitySet> response = entitySetRequest.execute();
+
+//      IOUtils.copy(entitySetRequest.rawExecute(), response);
       log.info("Received Results!");
 
-      log.info("Writing results to file!");
-      FileUtils.writeByteArrayToFile(new File(requestURI.getPath() + ".json"), response.toByteArray());
+      String fileName = requestURI.getPath().replace("/", "") + ".json";
+      log.info("Writing results to file: " + fileName);
+
+
       log.info("File written!");
 
     } catch (Exception ex) {
