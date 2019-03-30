@@ -4,18 +4,29 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.apache.olingo.client.api.ODataClient;
+import org.apache.olingo.client.api.ODataClientBuilder;
 import org.apache.olingo.client.api.communication.request.retrieve.ODataEntitySetRequest;
 import org.apache.olingo.client.api.communication.request.retrieve.XMLMetadataRequest;
+import org.apache.olingo.client.api.communication.response.ODataEntityCreateResponse;
+import org.apache.olingo.client.api.communication.response.ODataRawResponse;
 import org.apache.olingo.client.api.communication.response.ODataRetrieveResponse;
+import org.apache.olingo.client.api.data.ResWrap;
 import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
+import org.apache.olingo.client.api.serialization.ClientODataDeserializer;
+import org.apache.olingo.client.api.serialization.ODataDeserializerException;
 import org.apache.olingo.client.api.serialization.ODataSerializer;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
+import org.apache.olingo.commons.api.data.EntityCollection;
 import org.apache.olingo.commons.api.edm.Edm;
+import org.apache.olingo.commons.api.edm.EdmEntitySet;
+import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeException;
 import org.apache.olingo.commons.api.format.ContentType;
-import org.apache.olingo.server.core.serializer.json.ODataJsonSerializer;
+import org.apache.olingo.commons.api.http.HttpStatusCode;
+import org.apache.olingo.server.api.serializer.EntityCollectionSerializerOptions;
+import org.apache.olingo.server.core.uri.queryoption.CountOptionImpl;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
@@ -24,7 +35,6 @@ import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import java.io.*;
 import java.net.URI;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,6 +47,7 @@ public class Commander {
   private ODataClient client;
   private String serviceRoot;
   private String bearerToken;
+  private boolean useEdmEnabledClient;
 
   private static final Logger log = Logger.getLogger(Commander.class);
 
@@ -56,11 +67,15 @@ public class Commander {
    * @param useEdmEnabledClient true if an EdmEnabledClient should be used, and false otherwise.
    */
   public Commander(String serviceRoot, boolean useEdmEnabledClient) {
+    this.useEdmEnabledClient = useEdmEnabledClient;
+
     this.serviceRoot = serviceRoot;
-    log.info("Using EdmEnabledClient: " + useEdmEnabledClient);
-    client = useEdmEnabledClient ?
-        ODataClientFactory.getEdmEnabledClient(serviceRoot)
-        : ODataClientFactory.getClient();
+    log.debug("\nUsing EdmEnabledClient: " + useEdmEnabledClient);
+    if (useEdmEnabledClient) {
+      client = ODataClientFactory.getEdmEnabledClient(serviceRoot);
+    } else {
+      client = ODataClientFactory.getClient();
+    }
   }
 
   /**
@@ -70,12 +85,18 @@ public class Commander {
    */
   public Commander(String serviceRoot, String bearerToken) {
     this(serviceRoot, bearerToken, false);
+    this.bearerToken = bearerToken;
   }
 
   /**
    * Creates a Commander instance that uses the given Bearer token for authentication and allows the Client
    * to specify whether to use an EdmEnabledClient or normal OData client.
+   *
+   * NOTE: serviceRoot can sometimes be null, but is required if useEdmEnabledClient is true.
+   *        A check has been added for this condition.
+   *
    * TODO: replace constructors with Builder pattern.
+   *
    * @param serviceRoot the service root of the WebAPI server.
    * @param bearerToken the bearer token to use to authenticate with the given serviceRoot.
    * @param useEdmEnabledClient
@@ -88,70 +109,126 @@ public class Commander {
 
   /**
    * Gets server metadata in EDMX format.
+   *
+   * TODO: add optional validation upon fetch
+   *
    * @return Edm representation of the server metadata.
    */
   public Edm getMetadata(String outputFileName) {
     XMLMetadataRequest request = client.getRetrieveRequestFactory().getXMLMetadataRequest(serviceRoot);
 
     try {
-      log.info("Fetching Metadata...");
-      ByteArrayOutputStream response = new ByteArrayOutputStream();
-      IOUtils.copy(request.rawExecute(), response);
-      log.info("Received metadata!");
+      log.info("Fetching Metadata from " + serviceRoot + "...");
+      byte[] buffer = IOUtils.toByteArray(request.rawExecute());
+      log.info("Transfer complete! Bytes received: " + buffer.length);
 
-      log.info("Writing metadata to file...");
-      FileUtils.writeByteArrayToFile(new File(outputFileName), response.toByteArray());
-      log.info("File written!");
+      // copy response to given output file
+      FileUtils.writeByteArrayToFile(new File(outputFileName), buffer);
+      log.info("Wrote metadata to: " + outputFileName);
 
-      return client.getReader().readMetadata(new ByteArrayInputStream(response.toByteArray()));
+      // read metadata from binary to ensure it deserializes properly and return
+      return client.getReader().readMetadata(new ByteArrayInputStream(buffer));
     } catch (Exception ex) {
       System.err.println(ex.toString());
+      System.exit(1);
     }
+
     return null;
   }
 
   /**
-   * Validates the given metadata at the given file path name.
-   * @param metadataFileName the path name to look for the metadata in.
+   * Validates given XMLMetadata
+   * @param metadata the XMLMetadata to be validated
+   * @return true if the metadata is valid, meaning that it's also a valid OData 4 Service Document
+   */
+  public boolean validateMetadata(XMLMetadata metadata) {
+    try {
+      // call the probably-useless metadata validator. can't hurt though
+      // SEE: https://github.com/apache/olingo-odata4/blob/master/lib/client-core/src/main/java/org/apache/olingo/client/core/serialization/ODataMetadataValidationImpl.java#L77-L116
+      client.metadataValidation().validateMetadata(metadata);
+
+      // also check whether metadata contains a valid service document in OData v4 format
+      return client.metadataValidation().isServiceDocument(metadata)
+          && client.metadataValidation().isV4Metadata(metadata);
+    } catch (Exception ex) {
+      log.error("ERROR: " + ex.getMessage());
+
+      if (ex.getCause() != null) {
+        log.error("ERROR: " + ex.getCause().getMessage());
+        System.exit(1);
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Validates the given metadata contained in the given file path.
+   * @param pathToEdmx the path to look for metadata in. Assumes metadata is stored as XML.
    * @return true if the metadata is valid and false otherwise.
    */
-  public boolean validateMetadata(String metadataFileName) {
+  public boolean validateMetadata(String pathToEdmx) {
     try {
-      XMLMetadata metadata = client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(new FileInputStream(metadataFileName));
-      return client.metadataValidation().isServiceDocument(metadata) && client.metadataValidation().isV4Metadata(metadata);
+      // deserialize metadata from given file
+      XMLMetadata metadata =
+          client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(new FileInputStream(pathToEdmx));
+
+      return validateMetadata(metadata);
+
     } catch (Exception ex) {
-      log.error(ex.getMessage());
-      //TODO
-      //log.error(ex.getCause().getMessage());
+      log.error("ERROR: " + ex.getMessage());
+      System.exit(1);
     }
     return false;
   }
 
   /**
-   * Writes the given entity set to the given path name, or throws an exception if that Entity
-   * cannot be found at the given uri.
-   * @param uri the URI used to search for that entity.
+   * Retrieves a client entity set using the given requestURI, but doesn't perform automatic paging
+   * in the way that readEntitySet does. If the Commander has been instantiated with an EdmEnabledClient,
+   * results will be validated against server metadata while being fetched.
+   *
+   * @param requestURI the full OData WebAPI URI used to fetch records. requestURI is expected to be URL Encoded.
+   * @return a ClientEntitySet containing the requested records, or null if nothing was found.
    */
-  public void getEntitySet(String uri) {
+  public ClientEntitySet getEntitySet(URI requestURI) {
     try {
-      URI requestURI = URI.create(uri);
-      ODataEntitySetRequest<ClientEntitySet> entitySetRequest
-          = client.getRetrieveRequestFactory().getEntitySetRequest(requestURI);
+      ODataRetrieveResponse<ClientEntitySet> response
+          = client.getRetrieveRequestFactory().getEntitySetRequest(requestURI).execute();
 
-//      ByteArrayOutputStream response = new ByteArrayOutputStream();
-      ODataRetrieveResponse<ClientEntitySet> response = entitySetRequest.execute();
-
-//      IOUtils.copy(entitySetRequest.rawExecute(), response);
-      log.info("Received Results!");
-
-      String fileName = requestURI.getPath().replace("/", "") + ".json";
-      log.info("Writing results to file: " + fileName);
-
-
-      log.info("File written!");
-
+      if (response.getStatusCode() == HttpStatusCode.OK.getStatusCode()) {
+        return response.getBody();
+      } else {
+        log.error("ERROR:getEntitySet received a response status other than OK (200)!");
+        System.exit(1);
+      }
+    } catch (IllegalArgumentException iaex) {
+      if (useEdmEnabledClient) {
+        log.error("\nError encountered while using the EdmEnabledClient. This usually means metadata were invalid!");
+      }
+      log.error(iaex.getMessage());
+      System.exit(1);
     } catch (Exception ex) {
       log.error(ex.toString());
+      System.exit(1);
+    }
+
+    return null;
+  }
+
+  /**
+   * Executes a get request on URI and saves raw response to outputFilePath.
+   * @param requestURI the URI to make the request against
+   * @param outputFilePath the outputFilePath to write the response to
+   */
+  public void saveRawGetRequest(URI requestURI, String outputFilePath) {
+    try {
+      FileUtils.copyInputStreamToFile(
+          client.getRetrieveRequestFactory().getRawRequest(requestURI).rawExecute(), new File(outputFilePath));
+
+      log.info("Request complete... Response written to file: " + outputFilePath);
+
+    } catch (Exception ex) {
+      log.error("ERROR: exception occurred in writeRawResponse. " + ex.getMessage());
     }
   }
 
@@ -167,21 +244,20 @@ public class Commander {
 
     List<ClientEntity> result = new ArrayList<>();
     URI uri = client.newURIBuilder(serviceRoot).appendEntitySetSegment(resourceName).build();
+    ODataRetrieveResponse<ClientEntitySet> entitySetResponse = null;
 
     do {
-      ODataRetrieveResponse<ClientEntitySet> entitySetResponse =
-          client.getRetrieveRequestFactory().getEntitySetRequest(uri).execute();
+      entitySetResponse = client.getRetrieveRequestFactory().getEntitySetRequest(uri).execute();
 
       result.addAll(entitySetResponse.getBody().getEntities());
 
-      //note that uri becomes null when the last page has been reached
-      uri = entitySetResponse.getBody().getNext();
+      uri = client.newURIBuilder(serviceRoot).appendEntitySetSegment(resourceName).skip(result.size()).build();
 
-    } while (uri != null && (limit == -1 || result.size() < limit));
+    } while (entitySetResponse.getBody().getNext() != null && (limit == -1 || result.size() < limit));
 
     //limit result to limit as we may have paged further than needed
     ClientEntitySet val = new ClientEntitySetImpl();
-    val.getEntities().addAll(result.subList(0, result.size()));
+    val.getEntities().addAll(result.subList(0, limit == -1 ? result.size() : Math.min(limit, result.size())));
     return val;
   }
 
@@ -210,12 +286,10 @@ public class Commander {
    * @param outputFilePath - the path to write the file to.
    */
   public void serializeEntitySet(ClientEntitySet entitySet, String outputFilePath) {
-
     try {
       log.info("Serializing " + entitySet.getEntities().size() + " item(s) to " + outputFilePath);
-      client.getSerializer(ContentType.JSON).write(new FileWriter(outputFilePath), client.getBinder().getEntitySet(entitySet));
 
-    //FileUtils.copyInputStreamToFile(client.getWriter().writeEntities(entitySet.getEntities(), ContentType.JSON_FULL_METADATA), new File(outputFilePath));
+      client.getSerializer(ContentType.JSON).write(new FileWriter(outputFilePath), client.getBinder().getEntitySet(entitySet));
     } catch (Exception ex) {
       System.out.println(ex.getMessage());
     }

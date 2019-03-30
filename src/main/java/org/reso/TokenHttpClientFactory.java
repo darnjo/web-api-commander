@@ -3,6 +3,7 @@ package org.reso;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.CoreProtocolPNames;
+import org.apache.log4j.Logger;
 import org.apache.olingo.client.core.http.DefaultHttpClientFactory;
 import org.apache.olingo.commons.api.http.HttpMethod;
 
@@ -10,6 +11,8 @@ import java.net.URI;
 
 public class TokenHttpClientFactory extends DefaultHttpClientFactory {
   String token;
+
+  private static final Logger log = Logger.getLogger(TokenHttpClientFactory.class);
 
   /**
    * Constructor for use with tokens.
@@ -33,6 +36,11 @@ public class TokenHttpClientFactory extends DefaultHttpClientFactory {
 
   @Override
   public void close(final HttpClient httpClient) {
-    httpClient.getConnectionManager().shutdown();
+    try {
+      httpClient.getConnectionManager().shutdown();
+    } catch (Exception ex) {
+      log.error(ex.toString());
+    }
+
   }
 }

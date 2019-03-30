@@ -5,8 +5,23 @@ import org.apache.log4j.Logger;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.commons.api.edm.Edm;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+
 /**
- * Entry point of the RESO Web API Commander
+ * Entry point of the RESO Web API Commander, which is a command line OData client that uses the Java Olingo
+ * Client Library to handle OData and the Apache CXF library to handle Auth. Currently, the following forms
+ * of Auth are supported:
+ *
+ *  - Bearer Tokens
+ *
+ * Exposes several different actions for working with OData-based WebAPI servers.
+ * This application is structured so that the Main class is an OData WebAPI consumer
+ * using the Commander class, which contains the actual methods for working with OData.
+ *
+ * For usage, see README.
  *
  * TODO: add better handling for required parameters, currently just checks if they're there and prints help if not
  */
@@ -22,109 +37,167 @@ public class Main {
     Edm metadata;
     Commander commander;
 
-    String serviceRoot, bearerToken, entityName, uri;
+    String serviceRoot, bearerToken;
 
     try {
       // parse the command line arguments
-      CommandLine cmd = parser.parse( options, params );
+      CommandLine cmd = parser.parse(options, params);
 
-      //TODO: option name constants
-
-      //either serviceRoot or uri is required
+      // TODO: add constants for option names
       serviceRoot = cmd.getOptionValue("serviceRoot", null);
-      uri = cmd.getOptionValue("uri", null);
 
-      //only bearer token support for now
-      //TODO: apache CXF for other forms of auth
+      // only bearer token support for now
+      // TODO: apache CXF for other forms of auth
       bearerToken = cmd.getOptionValue("bearerToken", null);
 
+      // using the edmEnabledClient requires the serviceRoot for schema validation, which is performed
+      // against the payload each time the request is made when enabled.
+      boolean useEdmEnabledClient = cmd.hasOption("useEdmEnabledClient");
 
-
-      //--overrides begin--//
-
-      //for now allow overriding of parameters from the code below
-      //TODO: remove token info and squash before releasing to the public
-      if (serviceRoot == null || uri == null || bearerToken == null) {
-
-        //working
-        serviceRoot = "https://rets.io/api/v2/OData/har";
-        bearerToken = "887da184c3b60d9d7b80ea975bb1db98";
-        entityName = "Media";
-        uri = "https://rets.io/api/v2/OData/har/Property?$filter=ListPrice%20gt%201000";
-
-
-        //problem with next links, they don't have skip in the correct place
-//    serviceRoot = "http://rts-api.mlsgrid.com/";
-//    bearerToken = "64ed09cc5876671fec76776232213f96fc40d4eb";
-//    entityName = "PropertyResi";
-
-//    serviceRoot = "http://rapitest.realcomp.com/odata";
-//    bearerToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Ik16aEdRa05GUkRKRk5qYzBRamxHTkVWRE1Ua3lSRUUzUVRsQ09EWTVNMEkyTlRKRFFUVTFNdyJ9.eyJpc3MiOiJodHRwczovL3JlYWxjb21wYXBpLmF1dGgwLmNvbS8iLCJzdWIiOiI4UnozcDIyR084Mkp0cnh4bjJWVVFUV1ltNGN4SXllZkBjbGllbnRzIiwiYXVkIjoicmFwaS5yZWFsY29tcC5jb20iLCJpYXQiOjE1NTIzMjM4NTEsImV4cCI6MTU1MjQxMDI1MSwiYXpwIjoiOFJ6M3AyMkdPODJKdHJ4eG4yVlVRVFdZbTRjeEl5ZWYiLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMifQ.lNeMb4KM3Q2exvDMseVfczaakHB3IbiM2_QcrcECWzPtNjTy0q8xQwgBnEZvYfNUERNYkupSj4NXnmJWTW3moB_-L6AFujfn3iSBspLTdUmyV8ffk-NQkeAPKsf5Dhu8fmpsNEeNmZ04-1frZzlbzqx3dDG0rsV85M3VXMvPaGpwc1_wgKv5M2TmGZYRdOw4ASVI3pMElpldygnct3cL6CXbZb0Xq0tmwZhXuv06SMeHqoRyeqaUah5z1UELpVGyxgZK1AfsOGlssJ2iZGUXt47mvdPcsh_u8fA8mW2Y7lQW84y6Nb1Z9rp0L86VNX-Mg5UORCp8r3LfEv7aAMoAZA";
-//    entityName = "Property";
-
-        //not working - bad metadata
-//    serviceRoot = "https://rets.io/api/v2/OData/";
-//    bearerToken = "fbee0196c78d575b1b81d27d03290a1e";
-//    entityName = "Property";
-
-//    serviceRoot = "http://retswebapi.raprets.com/BAK/RESO/odata/";
-//    bearerToken = "684b0e328cb4420e9d5bfa119f79164a";
-
-        //not working - bad auth token
-//    serviceRoot = "https://api.catylist.com/RESO/OData/";
-//    bearerToken = "6ae90a099caace7e808d17819a79234a";
-
-//    serviceRoot = "https://sparkapi.com/Reso/OData";
-//    bearerToken = "ay44wtv8dh6dhgweuq045ig2r";
-//    entityName = "Property";
-
-      }
-
-      //--overrides end--//
-
-
-      //using the edmEnabledClient requires the serviceRoot for schema validation, which is performed
-      //against the payload each time the request is made when enabled.
-      boolean useEdmEnabledClient = Boolean.parseBoolean(cmd.getOptionValue("useEdmEnabledClient"));
-
-      if (serviceRoot == null || uri == null || bearerToken == null) {
-
-        if (useEdmEnabledClient && serviceRoot == null) {
-          log.error("ERROR: serviceRoot is required when using the edmEnabledClient!");
-        } else if (serviceRoot == null && uri == null){
-          log.error("ERROR: serviceRoot or uri are required!");
-        }
-
-        log.error("ERROR: bearerToken is required!");
+      if (useEdmEnabledClient && !cmd.hasOption("serviceRoot")) {
+        log.error("\nERROR: --serviceRoot is required with the --useEdmEnabledClient option!");
         printHelp(options);
-        return;
+        System.exit(1);
       }
 
       // create a new Web API Commander instance
       commander = new Commander(serviceRoot, bearerToken, useEdmEnabledClient);
 
-      String inputFile = cmd.getOptionValue("inputFile");
-      String outputFile = cmd.getOptionValue("outputFile");
-      entityName = cmd.getOptionValue("entityName");
+      // pre-load options for later use
+      String inputFile = cmd.getOptionValue("inputFile", null);
+      String outputFile = cmd.getOptionValue("outputFile", null);
+      String entityName = cmd.getOptionValue("entityName", null);
+      String uri = cmd.getOptionValue("uri", null);
+
+      //pass -1 to get all pages, default is 10
+      int limit = Integer.parseInt(cmd.getOptionValue("limit", "10"));
 
       if (cmd.hasOption("getMetadata")) {
-        if (cmd.hasOption("outputFile")) {
-          log.info("Getting metadata from " + serviceRoot + "...");
-          metadata = commander.getMetadata(outputFile);
-          log.info("Metadata file (EDMX) saved to " + outputFile);
 
-          log.info("The metadata contains the following items:");
+        /**
+         * Gets metadata from the given serviceRoot and write it to the given outputFile.
+         * Calls the metadata validator on all metadata that's been consumed, but doesn't error
+         * if the metadata is invalid, rather it fetches it and analyzes it afterwards.
+         */
+        if (cmd.hasOption("serviceRoot") && cmd.hasOption("bearerToken") && cmd.hasOption("outputFile")) {
+          log.info("\nGetting metadata from " + serviceRoot + "...");
+          metadata = commander.getMetadata(outputFile);
+
+          log.info("\nThe metadata contains the following items:");
           prettyPrint(metadata);
+
+          log.info("\nChecking Metadata for validity...");
+          if (commander.validateMetadata(outputFile)) {
+            log.info("--> Valid Metadata!");
+          } else {
+            log.error("--> Invalid Metadata!");
+            System.exit(1);
+          }
+
         } else {
-          log.error("ERROR: --outputFile is required with the --getMetadata option!");
+          //TODO: handle parameter requirements in a better way.
+          //TODO: currently the Command object allows for required/optional params, but not across different actions.
+          StringBuilder errSb =
+              new StringBuilder("\nERROR: the following options are required when using getMetadata!");
+
+          if (!cmd.hasOption("serviceRoot")) {
+            errSb.append("\n\t--serviceRoot");
+          }
+
+          if (!cmd.hasOption("bearerToken")) {
+            errSb.append("\n\t--bearerToken");
+          }
+
+          if (!cmd.hasOption("outputFile")) {
+            errSb.append("\n\t--outputFile");
+          }
+
+          log.error(errSb.toString() + "\n");
           printHelp(options);
         }
-      } else if (cmd.hasOption("readEntities")) {
-        if (cmd.hasOption("entityName") && cmd.hasOption("limit") && cmd.hasOption("outputFile")) {
-          // pass -1 to get all pages
-          int limit = Integer.parseInt(cmd.getOptionValue("limit"));
 
-          //TODO: pass -1 to get all entities
+      } else if (cmd.hasOption("validateMetadata")) {
+
+        /**
+         * Validates the metadata in inputFile in three ways:
+         *    - deserializes it into a native Edm object, which will fail if given metadata isn't valid
+         *    - verifies whether the given EDMX file is a valid service document
+         *    - verifies whether the given EDMX file is in version 4 format
+         *
+         *    TODO: add more validity checks, where relevant
+         */
+
+        if (cmd.hasOption("inputFile")) {
+          if (commander.validateMetadata(inputFile)) {
+            log.info("Valid Metadata!");
+          } else {
+            log.error("\nERROR: Invalid Metadata!");
+          }
+        } else {
+          StringBuilder errSb =
+              new StringBuilder("\nERROR: the following options are required when using validateMetadata!");
+
+          if (!cmd.hasOption("serviceRoot")) {
+            errSb.append("\n\t--serviceRoot");
+          }
+          log.error("\nERROR: --inputFile is required with the --validateMetadata option!");
+          printHelp(options);
+        }
+
+      } else if (cmd.hasOption("getEntitySet")) {
+
+        /**
+         * Gets a ClientEntitySet from the given uri. If the useEdmEnabledClient option was passed,
+         * then serviceRoot is required, and results fetched from uri are validated against the server's
+         * published metadata.
+         *
+         * Results are written to outputFile.
+         */
+
+        if (cmd.hasOption("uri") && cmd.hasOption("bearerToken") && cmd.hasOption("outputFile")) {
+          try {
+            ClientEntitySet results = commander.getEntitySet(URI.create(uri));
+
+            if (results != null) {
+              commander.serializeEntitySet(results, outputFile);
+            }
+          } catch (Exception ex) {
+            log.error(ex.toString());
+          }
+        } else {
+          StringBuilder errSb =
+              new StringBuilder("\nERROR: the following options are required when using getEntitySet!");
+
+          if (!cmd.hasOption("serviceRoot")) {
+            errSb.append("\n\t--serviceRoot");
+          }
+
+          if (!cmd.hasOption("bearerToken")) {
+            errSb.append("\n\t--bearerToken");
+          }
+
+          if (!cmd.hasOption("uri")) {
+            errSb.append("\n\t--uri");
+          }
+
+          if (!cmd.hasOption("outputFile")) {
+            errSb.append("\n\t--outputFile");
+          }
+
+          log.error(errSb.toString());
+          printHelp(options);
+        }
+
+      } else if (cmd.hasOption("readEntities")) {
+
+        /**
+         * Uses the OData
+         */
+
+        if (cmd.hasOption("serviceRoot") && cmd.hasOption("bearerToken") && cmd.hasOption("entityName")
+            && cmd.hasOption("limit") && cmd.hasOption("outputFile")) {
+
+          //NOTE: pass -1 to get all entities
           log.info("Reading entities for the given resource: " + entityName);
           ClientEntitySet entities = commander.readEntities(entityName, limit);
 
@@ -134,47 +207,77 @@ public class Main {
           log.info("Saving to file: " + outputFile);
           commander.serializeEntitySet(entities, outputFile);
         } else {
-          log.error("ERROR: --entityName, --limit, and --outputFile are required with the --readEntities option!");
+          StringBuilder errSb =
+              new StringBuilder("\nERROR: the following options are required when using readEntities!");
+
+          if (!cmd.hasOption("serviceRoot")) {
+            errSb.append("\n\t--serviceRoot");
+          }
+
+          if (!cmd.hasOption("bearerToken")) {
+            errSb.append("\n\t--bearerToken");
+          }
+
+          if (!cmd.hasOption("entityName")) {
+            errSb.append("\n\t--entityName");
+          }
+
+          if (!cmd.hasOption("limit")) {
+            errSb.append("\n\t--limit");
+          }
+
+          if (!cmd.hasOption("outputFile")) {
+            errSb.append("\n\t--outputFile");
+          }
+
+          log.error(errSb.toString());
           printHelp(options);
         }
 
-      } else if (cmd.hasOption("validateMetadata")) {
-        if (cmd.hasOption("inputFile")) {
-          if (commander.validateMetadata(inputFile)) {
-            log.info("Valid Metadata!");
-          } else {
-            log.error("ERROR: Invalid Metadata!");
-          }
+      } else if (cmd.hasOption("saveRawGetRequest")) {
+        if (cmd.hasOption("serviceRoot") && cmd.hasOption("bearerToken")
+            && cmd.hasOption("uri") && cmd.hasOption("outputFile")) {
+          commander.saveRawGetRequest(URI.create(uri), outputFile);
         } else {
-          log.error("ERROR: --inputFile is required with the --validateMetadata option!");
+          StringBuilder errSb =
+              new StringBuilder("\nERROR: the following options are required when using saveRawResponse!");
+
+          if (!cmd.hasOption("serviceRoot")) {
+            errSb.append("\n\t--serviceRoot");
+          }
+
+          if (!cmd.hasOption("bearerToken")) {
+            errSb.append("\n\t--bearerToken");
+          }
+
+          if (!cmd.hasOption("outputFile")) {
+            errSb.append("\n\t--outputFile");
+          }
+          log.error(errSb.toString());
           printHelp(options);
         }
 
-      } else if (cmd.hasOption("getEntitySet")) {
-        if (cmd.hasOption("uri")) {
-          try {
-            commander.getEntitySet(uri);
-          } catch (Exception ex) {
-            log.error(ex.toString());
-          }
-        } else {
-          log.error("ERROR: --uri is required with the --getEntitySet option!");
-          printHelp(options);
-        }
 
       } else if (cmd.hasOption("convertEDMXtoOAI")) {
         if (cmd.hasOption("inputFile")) {
           //converts metadata in input source file to output file
           commander.convertMetadata(inputFile);
         } else {
-          log.error("ERROR: --inputFile is required with the --convertEDMXtoOAI option!");
+          StringBuilder errSb =
+              new StringBuilder("\nERROR: the following options are required when using convertEDMXtoOAI!");
+
+          if (!cmd.hasOption("inputFile")) {
+            errSb.append("\n\t--inputFile");
+          }
+
+          log.error(errSb.toString());
           printHelp(options);
         }
       } else {
         printHelp(options);
       }
-    } catch( ParseException exp ) {
-      log.error( "ERROR: Unexpected exception:" + exp.getMessage() + "!");
+    } catch (ParseException exp) {
+      log.error("\nERROR: Unexpected exception:" + exp.getMessage() + "!");
     }
   }
 
@@ -184,6 +287,7 @@ public class Main {
 
   /**
    * Metadata Pretty Printer
+   *
    * @param metadata any metadata in Edm format
    */
   private static void prettyPrint(Edm metadata) {
@@ -213,58 +317,58 @@ public class Main {
     });
   }
 
-
   /**
    * Options helper
+   *
    * @return options allowed for command line input
    */
   private static Options getOptions() {
     // create Options
     Option hostNameOption = Option.builder()
-      .argName("s").longOpt("serviceRoot").hasArg().desc("service root URL on the host").build();
+        .argName("s").longOpt("serviceRoot").hasArg().desc("service root URL on the host").build();
 
     Option bearerTokenOption = Option.builder()
-      .argName("b").longOpt("bearerToken").hasArg().desc("the bearer token to be used with the request").build();
+        .argName("b").longOpt("bearerToken").hasArg().desc("the bearer token to be used with the request").build();
 
     Option inputFileOption = Option.builder()
-      .argName("i").longOpt("inputFile").hasArg().desc("path to input file").build();
+        .argName("i").longOpt("inputFile").hasArg().desc("path to input file").build();
 
     Option outputFileOption = Option.builder()
-      .argName("o").longOpt("outputFile").hasArg().desc("path to output file").build();
+        .argName("o").longOpt("outputFile").hasArg().desc("path to output file").build();
 
     Option uriOption = Option.builder()
-      .argName("u").longOpt("uri").hasArg().desc("URI for raw request").build();
+        .argName("u").longOpt("uri").hasArg().desc("URI for raw request").build();
 
     Option limit = Option.builder()
         .argName("l").longOpt("limit").hasArg().desc("the number of records to fetch, or -1 to fetch all").build();
 
     Option entityName = Option.builder()
-        .argName("e").longOpt("entityName").hasArg().desc("the name of the entity to fetch, e.g. Property").build();
+        .argName("n").longOpt("entityName").hasArg().desc("the name of the entity to fetch, e.g. Property").build();
 
     Option useEdmEnabledClient = Option.builder()
-        .argName("d").longOpt("useEdmEnabledClient").hasArg().desc("true if an EdmEnabledClient should be used, false otherwise").build();
+        .argName("e").longOpt("useEdmEnabledClient").desc("present if an EdmEnabledClient should be used.").build();
 
     Option helpOption = Option.builder()
-      .argName("?").longOpt("help").hasArg(false).desc("print help").build();
+        .argName("?").longOpt("help").hasArg(false).desc("print help").build();
 
     OptionGroup actions = new OptionGroup()
-      .addOption(Option.builder().argName("m").longOpt("getMetadata").hasArg(false).desc("fetches metadata from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
-      .addOption(Option.builder().argName("r").longOpt("readEntities").hasArg(false).desc("reads <entityName> from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
-      .addOption(Option.builder().argName("g").longOpt("getEntitySet").hasArg(false).desc("executes GET on <uri> using the given <serviceRoot> and <bearerToken>.").build())
-      .addOption(Option.builder().argName("v").longOpt("validateMetadata").hasArg(false).desc("validates previously-fetched metadata in the <inputFile> path.").build())
-      .addOption(Option.builder().argName("c").longOpt("convertEDMXtoOAI").hasArg(false).desc("converts EDMX in <inputFile> to OAI, saving it in <inputFile>.swagger.json").build());
+        .addOption(Option.builder().argName("m").longOpt("getMetadata").hasArg(false).desc("fetches metadata from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
+        .addOption(Option.builder().argName("r").longOpt("readEntities").hasArg(false).desc("reads <entityName> from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
+        .addOption(Option.builder().argName("g").longOpt("getEntitySet").hasArg(false).desc("executes GET on <uri> using the given <serviceRoot> and <bearerToken>.").build())
+        .addOption(Option.builder().argName("v").longOpt("validateMetadata").hasArg(false).desc("validates previously-fetched metadata in the <inputFile> path.").build())
+        .addOption(Option.builder().argName("w").longOpt("saveRawGetRequest").hasArg(false).desc("performs GET from <requestURI> and saves output to <outputFile>.").build())
+        .addOption(Option.builder().argName("c").longOpt("convertEDMXtoOAI").hasArg(false).desc("converts EDMX in <inputFile> to OAI, saving it in <inputFile>.swagger.json").build());
 
     return new Options()
-      .addOption(helpOption)
-      .addOption(hostNameOption)
-      .addOption(bearerTokenOption)
-      .addOption(inputFileOption)
-      .addOption(outputFileOption)
-      .addOption(limit)
-      .addOption(entityName)
-      .addOption(useEdmEnabledClient)
-      .addOption(uriOption)
-      .addOptionGroup(actions);
+        .addOption(helpOption)
+        .addOption(hostNameOption)
+        .addOption(bearerTokenOption)
+        .addOption(inputFileOption)
+        .addOption(outputFileOption)
+        .addOption(limit)
+        .addOption(entityName)
+        .addOption(useEdmEnabledClient)
+        .addOption(uriOption)
+        .addOptionGroup(actions);
   }
-
 }
