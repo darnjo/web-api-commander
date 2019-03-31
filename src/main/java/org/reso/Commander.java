@@ -42,22 +42,33 @@ public class Commander {
 
   private static final Logger log = Logger.getLogger(Commander.class);
 
+  public static int NOT_OK = 1;
+
   /**
-   * Creates a Commander instance that uses the normal OData client.
-   * In other words, no validation is done against metadata upon making requests.
-   * @param serviceRoot
+   * Creates a Commander instance that uses the given Bearer token for authentication and allows the Client
+   * to specify whether to use an EdmEnabledClient or normal OData client.
+   *
+   * NOTE: serviceRoot can sometimes be null, but is required if useEdmEnabledClient is true.
+   *        A check has been added for this condition.
+   **
+   * @param serviceRoot the service root of the WebAPI server.
+   * @param bearerToken the bearer token to use to authenticate with the given serviceRoot.
+   * @param useEdmEnabledClient
    */
-  public Commander(String serviceRoot) {
-    this(serviceRoot, false);
+  public Commander(String serviceRoot, String bearerToken, boolean useEdmEnabledClient) {
+    this(serviceRoot, useEdmEnabledClient);
+    this.bearerToken = bearerToken;
+    client.getConfiguration().setHttpClientFactory(new TokenHttpClientFactory(bearerToken));
   }
 
   /**
+   * Private constructor for internal use.
+   *
    * Creates a Commander instance that allows the caller to use an EdmEnabledClient,
    * meaning that all payloads will be verified against the metadata published at serviceRoot.
    * @param serviceRoot the service root of the WebAPI server.
-   * @param useEdmEnabledClient true if an EdmEnabledClient should be used, and false otherwise.
    */
-  public Commander(String serviceRoot, boolean useEdmEnabledClient) {
+  private Commander(String serviceRoot, boolean useEdmEnabledClient) {
     this.useEdmEnabledClient = useEdmEnabledClient;
 
     this.serviceRoot = serviceRoot;
@@ -67,35 +78,6 @@ public class Commander {
     } else {
       client = ODataClientFactory.getClient();
     }
-  }
-
-  /**
-   * Creates a Commander instance that uses the normal OData client and the given Bearer Token.
-   * @param serviceRoot the serviceRoot of the WebAPI server.
-   * @param bearerToken the bearer token used to authenticate with the given serviceRoot.
-   */
-  public Commander(String serviceRoot, String bearerToken) {
-    this(serviceRoot, bearerToken, false);
-    this.bearerToken = bearerToken;
-  }
-
-  /**
-   * Creates a Commander instance that uses the given Bearer token for authentication and allows the Client
-   * to specify whether to use an EdmEnabledClient or normal OData client.
-   *
-   * NOTE: serviceRoot can sometimes be null, but is required if useEdmEnabledClient is true.
-   *        A check has been added for this condition.
-   *
-   * TODO: replace constructors with Builder pattern.
-   *
-   * @param serviceRoot the service root of the WebAPI server.
-   * @param bearerToken the bearer token to use to authenticate with the given serviceRoot.
-   * @param useEdmEnabledClient
-   */
-  public Commander(String serviceRoot, String bearerToken, boolean useEdmEnabledClient) {
-    this(serviceRoot, useEdmEnabledClient);
-    this.bearerToken = bearerToken;
-    client.getConfiguration().setHttpClientFactory(new TokenHttpClientFactory(bearerToken));
   }
 
   /**
@@ -121,9 +103,8 @@ public class Commander {
       return client.getReader().readMetadata(new ByteArrayInputStream(buffer));
     } catch (Exception ex) {
       System.err.println(ex.toString());
-      System.exit(1);
+      System.exit(NOT_OK);
     }
-
     return null;
   }
 
@@ -146,10 +127,8 @@ public class Commander {
 
       if (ex.getCause() != null) {
         log.error("ERROR: " + ex.getCause().getMessage());
-        System.exit(1);
       }
     }
-
     return false;
   }
 
@@ -168,7 +147,7 @@ public class Commander {
 
     } catch (Exception ex) {
       log.error("ERROR: " + ex.getMessage());
-      System.exit(1);
+      System.exit(NOT_OK);
     }
     return false;
   }
@@ -190,17 +169,17 @@ public class Commander {
         return response.getBody();
       } else {
         log.error("ERROR:getEntitySet received a response status other than OK (200)!");
-        System.exit(1);
+        System.exit(NOT_OK);
       }
     } catch (IllegalArgumentException iaex) {
       if (useEdmEnabledClient) {
         log.error("\nError encountered while using the EdmEnabledClient. This usually means metadata were invalid!");
       }
       log.error(iaex.getMessage());
-      System.exit(1);
+      System.exit(NOT_OK);
     } catch (Exception ex) {
       log.error(ex.toString());
-      System.exit(1);
+      System.exit(NOT_OK);
     }
 
     return null;
@@ -220,7 +199,7 @@ public class Commander {
 
     } catch (Exception ex) {
       log.error("ERROR: exception occurred in writeRawResponse. " + ex.getMessage());
-      System.exit(1);
+      System.exit(NOT_OK);
     }
   }
 
@@ -262,7 +241,7 @@ public class Commander {
 
     } catch (Exception ex) {
       log.error("ERROR: readEntities could not continue. " + ex.toString());
-      System.exit(1);
+      System.exit(NOT_OK);
     }
 
     return results;
@@ -284,24 +263,70 @@ public class Commander {
 
     } catch (Exception ex) {
       log.error("ERROR: convertMetadata failed. " + ex.toString());
-      System.exit(1);
+      System.exit(NOT_OK);
     }
   }
 
   /**
    * Writes an Entity Set to the given outputFilePath.
-   * @param entitySet - the entity set to save
+   * @param entitySet - the ClientEntitySet to serialize.
    * @param outputFilePath - the path to write the file to.
    */
-  public void serializeEntitySet(ClientEntitySet entitySet, String outputFilePath) {
+  public void serializeEntitySet(ClientEntitySet entitySet, String outputFilePath, ContentType format) {
+
     try {
       log.info("Serializing " + entitySet.getEntities().size() + " item(s) to " + outputFilePath);
-
-      client.getSerializer(ContentType.JSON).write(new FileWriter(outputFilePath), client.getBinder().getEntitySet(entitySet));
+      client.getSerializer(format).write(new FileWriter(outputFilePath), client.getBinder().getEntitySet(entitySet));
     } catch (Exception ex) {
       System.out.println(ex.getMessage());
-      System.exit(1);
+      System.exit(NOT_OK);
     }
   }
 
+  /**
+   * Writes the given entitySet to the given outputFilePath.
+   * Writes in JSON format.
+   *
+   * @param entitySet the ClientEntitySet to serialize.
+   * @param outputFilePath the outputFilePath used to write to.
+   */
+  public void serializeEntitySet(ClientEntitySet entitySet, String outputFilePath) {
+    //JSON is the default format, though other formats like JSON_FULL_METADATA and XML are supported as well
+    serializeEntitySet(entitySet, outputFilePath, ContentType.JSON);
+  }
+
+  /**
+   * Builder pattern implemented for creating Commander instances
+   */
+  public static class Builder {
+    String serviceRoot;
+    String bearerToken;
+    boolean useEdmEnabledClient;
+
+    public Builder() {}
+
+    public Builder serviceRoot(String serviceRoot) {
+      this.serviceRoot = serviceRoot;
+      return this;
+    }
+
+    public Builder bearerToken(String bearerToken) {
+      this.bearerToken = bearerToken;
+      return this;
+    }
+
+    public Builder useEdmEnabledClient() {
+      this.useEdmEnabledClient = true;
+      return this;
+    }
+
+    public Builder useEdmEnabledClient(boolean useEdmEnabledClient) {
+      this.useEdmEnabledClient = useEdmEnabledClient;
+      return this;
+    }
+
+    public Commander build() {
+      return new Commander(serviceRoot, bearerToken, useEdmEnabledClient);
+    }
+  }
 }
