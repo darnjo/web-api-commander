@@ -68,6 +68,7 @@ public class Main {
       String outputFile = cmd.getOptionValue("outputFile", null);
       String entityName = cmd.getOptionValue("entityName", null);
       String uri = cmd.getOptionValue("uri", null);
+      String filter = cmd.getOptionValue("filter", null);
 
       //pass -1 to get all pages, default is 10
       int limit = Integer.parseInt(cmd.getOptionValue("limit", "10"));
@@ -199,7 +200,7 @@ public class Main {
 
           //NOTE: pass -1 to get all entities
           log.info("Reading entities for the given resource: " + entityName);
-          ClientEntitySet entities = commander.readEntities(entityName, limit);
+          ClientEntitySet entities = commander.readEntities(entityName, filter, limit);
 
           log.info(entities.getCount() + " entities fetched: ");
           entities.getEntities().stream().forEach(entity -> log.info(entity.toString()));
@@ -351,6 +352,9 @@ public class Main {
     Option helpOption = Option.builder()
         .argName("?").longOpt("help").hasArg(false).desc("print help").build();
 
+    Option filterOption = Option.builder()
+        .argName("f").longOpt("filter").hasArg().desc("if <filter> is passed, then readEntities will use it").build();
+
     OptionGroup actions = new OptionGroup()
         .addOption(Option.builder().argName("m").longOpt("getMetadata").hasArg(false).desc("fetches metadata from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
         .addOption(Option.builder().argName("r").longOpt("readEntities").hasArg(false).desc("reads <entityName> from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
@@ -369,6 +373,7 @@ public class Main {
         .addOption(entityName)
         .addOption(useEdmEnabledClient)
         .addOption(uriOption)
+        .addOption(filterOption)
         .addOptionGroup(actions);
   }
 }

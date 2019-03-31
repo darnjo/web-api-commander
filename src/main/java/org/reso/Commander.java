@@ -4,36 +4,27 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.apache.olingo.client.api.ODataClient;
-import org.apache.olingo.client.api.ODataClientBuilder;
-import org.apache.olingo.client.api.communication.request.retrieve.ODataEntitySetRequest;
 import org.apache.olingo.client.api.communication.request.retrieve.XMLMetadataRequest;
-import org.apache.olingo.client.api.communication.response.ODataEntityCreateResponse;
-import org.apache.olingo.client.api.communication.response.ODataRawResponse;
 import org.apache.olingo.client.api.communication.response.ODataRetrieveResponse;
-import org.apache.olingo.client.api.data.ResWrap;
 import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
-import org.apache.olingo.client.api.serialization.ClientODataDeserializer;
-import org.apache.olingo.client.api.serialization.ODataDeserializerException;
-import org.apache.olingo.client.api.serialization.ODataSerializer;
+import org.apache.olingo.client.api.uri.URIBuilder;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
-import org.apache.olingo.commons.api.data.EntityCollection;
 import org.apache.olingo.commons.api.edm.Edm;
-import org.apache.olingo.commons.api.edm.EdmEntitySet;
-import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeException;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.apache.olingo.commons.api.http.HttpStatusCode;
-import org.apache.olingo.server.api.serializer.EntityCollectionSerializerOptions;
-import org.apache.olingo.server.core.uri.queryoption.CountOptionImpl;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -229,36 +220,52 @@ public class Commander {
 
     } catch (Exception ex) {
       log.error("ERROR: exception occurred in writeRawResponse. " + ex.getMessage());
+      System.exit(1);
     }
   }
 
   /**
-   * Reads entities from a given resource.
-   * TODO: currently reads items into memory and writes a file. Instead, should incrementally write to file and track of progress.
+   * Reads entities from a given
+   * TODO: add a function that can write a page at a time.
+   * TODO: add a parallel function which can create n queries at a time and download their results
    *
    * @param resourceName the name of the resource.
    * @param limit the limit for the number of records to read from the Server. Use -1 to fetch all.
    * @return a ClientEntitySet containing any entities found.
    */
-  public ClientEntitySet readEntities(String resourceName, int limit) {
+  public ClientEntitySet readEntities(String resourceName, String filter, int limit) {
 
     List<ClientEntity> result = new ArrayList<>();
-    URI uri = client.newURIBuilder(serviceRoot).appendEntitySetSegment(resourceName).build();
     ODataRetrieveResponse<ClientEntitySet> entitySetResponse = null;
+    ClientEntitySet results = new ClientEntitySetImpl();
 
-    do {
-      entitySetResponse = client.getRetrieveRequestFactory().getEntitySetRequest(uri).execute();
+    try {
+      URIBuilder uriBuilder = client.newURIBuilder(serviceRoot).appendEntitySetSegment(resourceName);
 
-      result.addAll(entitySetResponse.getBody().getEntities());
+      //add filter if present
+      if (filter != null) {
+        uriBuilder.filter(filter);
+      }
 
-      uri = client.newURIBuilder(serviceRoot).appendEntitySetSegment(resourceName).skip(result.size()).build();
+      do {
+        entitySetResponse = client.getRetrieveRequestFactory().getEntitySetRequest(uriBuilder.build()).execute();
 
-    } while (entitySetResponse.getBody().getNext() != null && (limit == -1 || result.size() < limit));
+        result.addAll(entitySetResponse.getBody().getEntities());
 
-    //limit result to limit as we may have paged further than needed
-    ClientEntitySet val = new ClientEntitySetImpl();
-    val.getEntities().addAll(result.subList(0, limit == -1 ? result.size() : Math.min(limit, result.size())));
-    return val;
+        //some of the next links don't currently work, so we can't use getNext() reliably.
+        //we can, however, use the results of what we've downloaded previously to inform the skip.
+        uriBuilder.skip(result.size()).build();
+
+      } while (entitySetResponse.getBody().getNext() != null && (limit == -1 || result.size() < limit));
+
+      results.getEntities().addAll(result.subList(0, limit == -1 ? result.size() : Math.min(limit, result.size())));
+
+    } catch (Exception ex) {
+      log.error("ERROR: readEntities could not continue. " + ex.toString());
+      System.exit(1);
+    }
+
+    return results;
   }
 
   /**
@@ -276,7 +283,8 @@ public class Commander {
       transformer.transform(text, new StreamResult(new File(pathToEDMX + ".swagger.json")));
 
     } catch (Exception ex) {
-      log.error(ex.toString());
+      log.error("ERROR: convertMetadata failed. " + ex.toString());
+      System.exit(1);
     }
   }
 
@@ -292,6 +300,7 @@ public class Commander {
       client.getSerializer(ContentType.JSON).write(new FileWriter(outputFilePath), client.getBinder().getEntitySet(entitySet));
     } catch (Exception ex) {
       System.out.println(ex.getMessage());
+      System.exit(1);
     }
   }
 
