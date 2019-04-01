@@ -128,7 +128,7 @@ The `readEntities` action takes an `entityName` and reads all items up until `li
 Usage:
 
 ```
-java -jar web-api-commander.jar --readEntities --inputFile <i> --outputFile <o> --limit 101 --serviceRoot --serviceRoot <s> --bearerToken <b> --entityName Listing --filter "ListPrice gt 1000000" --useEdmEnabledClient
+java -jar web-api-commander.jar --readEntities --inputFile <i> --outputFile <o> --limit 101 --serviceRoot --serviceRoot <s> --bearerToken <b> --entityName Property --filter "ListPrice gt 1000000" --useEdmEnabledClient
 ```
 
 
