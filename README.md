@@ -5,8 +5,9 @@ the Apache Olingo library to provide the following functionality:
 
 * Get Metadata
 * Validate Metadata
-* Read Entities
-* Get Data from a Web API URL
+* Get Entity data from a Web API URL
+* Save raw responses from a WEB API URL
+* Read all Entities up to a given limit
 * Convert EDMX to Swagger / OAI
 
 The Web API Commander currently supports Bearer Tokens for authentication. 
@@ -117,7 +118,7 @@ java -jar web-api-commander.jar --uri <u> --bearerToken <b> --outputFile <o>
 Results are not checked against Server Metadata and are not written in any specific OData format.
 
   
-## 5. Reading all Entities up to `--limit` using `readEntities`
+## 5. Reading all Entities up to `limit` using `readEntities`
 
 The `readEntities` action takes an `entityName` and reads all items up until `limit` on a given 
 `serverRoot`. Paging is done behind the scenes by computing skips for each page of results.
@@ -140,6 +141,8 @@ Content Types currently supported are: `JSON`, `JSON_NO_METADATA`, `JSON_FULL_ME
 being fetched. While most command line arguments don't need to be quoted, `filter` expressions are the exception. 
 See above example.
 
+**Note**: passing `--limit -1` as an option will fetch _all_ Entities from the given `serviceRoot`.
+
 
 Additional query options will eventually be added, such as `$select` and `$order`. Planned 
 functionality includes a `parallel` option which will fetch multiple pages simultaneously up to `numThreads` workers.
@@ -154,7 +157,7 @@ It's worth mentioning that translation from EDMX to OAI/Swagger is _lossy_, mean
 will not be translated. This is due to the fact that EDMX is more specific than OAI, for instance with type 
 representations like Integers.
 
-The EDMX converter may be called as followed:
+The EDMX converter may be called as follows:
 
 ```
 java -jar web-api-commander.jar --convertEDMXtoOAI --inputFile <i>
