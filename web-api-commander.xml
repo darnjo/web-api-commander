@@ -627,11 +627,11 @@
     </javac2>
     
     <copy todir="${web-api-commander.output.dir}">
-      <fileset dir="${module.web-api-commander.basedir}/src/main/java">
+      <fileset dir="/">
         <patternset refid="compiler.resources"/>
         <type type="file"/>
       </fileset>
-      <fileset dir="${module.web-api-commander.basedir}/src/main/resources">
+      <fileset dir="/">
         <patternset refid="compiler.resources"/>
         <type type="file"/>
       </fileset>
