@@ -6,7 +6,6 @@ import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 
-import javax.swing.text.AbstractDocument;
 import java.net.URI;
 import java.util.Arrays;
 
@@ -104,9 +103,9 @@ public class Main {
         if (commander.validateMetadata(inputFile)) {
           log.info("Valid Metadata!");
         } else {
-          log.error("\nERROR: Invalid Metadata!");
+          log.error("ERROR: Invalid Metadata!\n");
+          System.exit(Commander.NOT_OK);
         }
-
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_ENTITY_SET)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_ENTITY_SET);
 
@@ -124,6 +123,7 @@ public class Main {
               commander.serializeEntitySet(results, outputFile, contentType);
             }
           } catch (Exception ex) {
+            System.exit(Commander.NOT_OK);
             log.error(ex.toString());
           }
 

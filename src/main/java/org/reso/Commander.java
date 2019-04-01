@@ -16,7 +16,6 @@ import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.apache.olingo.commons.api.http.HttpStatusCode;
 
-import javax.swing.text.AbstractDocument;
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
@@ -123,9 +122,10 @@ public class Commander {
       // also check whether metadata contains a valid service document in OData v4 format
       return client.metadataValidation().isServiceDocument(metadata)
           && client.metadataValidation().isV4Metadata(metadata);
+    } catch (NullPointerException nex) {
+      log.error("ERROR: null pointer exception while trying to validate metadata. Validation failed!");
     } catch (Exception ex) {
       log.error("ERROR: " + ex.getMessage());
-
       if (ex.getCause() != null) {
         log.error("ERROR: " + ex.getCause().getMessage());
       }
@@ -147,8 +147,7 @@ public class Commander {
       return validateMetadata(metadata);
 
     } catch (Exception ex) {
-      log.error("ERROR: " + ex.getMessage());
-      System.exit(NOT_OK);
+      log.error("ERROR: " + ex.getMessage() + "\n");
     }
     return false;
   }
