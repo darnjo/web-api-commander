@@ -4,7 +4,9 @@ import org.apache.commons.cli.*;
 import org.apache.log4j.Logger;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.commons.api.edm.Edm;
+import org.apache.olingo.commons.api.format.ContentType;
 
+import javax.swing.text.AbstractDocument;
 import java.net.URI;
 import java.util.Arrays;
 
@@ -55,22 +57,23 @@ public class Main {
             + " is required with the --" + APP_OPTIONS.USE_EDM_ENABLED_CLIENT + " option!");
       }
 
-      // create a new Web API Commander
-      commander = new Commander.Builder()
-          .serviceRoot(serviceRoot)
-          .bearerToken(bearerToken)
-          .useEdmEnabledClient(useEdmEnabledClient)
-          .build();
-
       // pre-load options for later use
       String inputFile = cmd.getOptionValue(APP_OPTIONS.INPUT_FILE, null);
       String outputFile = cmd.getOptionValue(APP_OPTIONS.OUTPUT_FILE, null);
       String entityName = cmd.getOptionValue(APP_OPTIONS.ENTITY_NAME, null);
       String uri = cmd.getOptionValue(APP_OPTIONS.URI, null);
       String filter = cmd.getOptionValue(APP_OPTIONS.FILTER, null);
+      ContentType contentType = Commander.getContentType(cmd.getOptionValue(APP_OPTIONS.CONTENT_TYPE, null));
 
       //pass -1 to get all pages, default is 10
       int limit = Integer.parseInt(cmd.getOptionValue(APP_OPTIONS.LIMIT, "10"));
+
+      // create a new Web API Commander
+      commander = new Commander.Builder()
+          .serviceRoot(serviceRoot)
+          .bearerToken(bearerToken)
+          .useEdmEnabledClient(useEdmEnabledClient)
+          .build();
 
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_METADATA)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_METADATA);
@@ -118,7 +121,7 @@ public class Main {
             ClientEntitySet results = commander.getEntitySet(URI.create(uri));
 
             if (results != null) {
-              commander.serializeEntitySet(results, outputFile);
+              commander.serializeEntitySet(results, outputFile, contentType);
             }
           } catch (Exception ex) {
             log.error(ex.toString());
@@ -142,7 +145,7 @@ public class Main {
         entities.getEntities().stream().forEach(entity -> log.info(entity.toString()));
 
         log.info("Saving to file: " + outputFile);
-        commander.serializeEntitySet(entities, outputFile);
+        commander.serializeEntitySet(entities, outputFile, contentType);
 
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.SAVE_RAW_GET_REQUEST)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.SAVE_RAW_GET_REQUEST);
@@ -160,9 +163,6 @@ public class Main {
       }
     } catch (ParseException exp) {
       log.error("\nERROR: Parse Exception, Commander cannot continue! " + exp.getMessage());
-      System.exit(Commander.NOT_OK);
-    } catch (Exception ex) {
-      log.error("\nERROR: unexpected general exception, Commander cannot continue! " + ex.getMessage());
       System.exit(Commander.NOT_OK);
     }
   }
@@ -232,6 +232,7 @@ public class Main {
     public static String ENTITY_NAME = "entityName";
     public static String USE_EDM_ENABLED_CLIENT = "useEdmEnabledClient";
     public static String FILTER = "filter";
+    public static String CONTENT_TYPE = "contentType";
     public static String HELP = "help";
 
     public static class ACTIONS {
@@ -295,45 +296,80 @@ public class Main {
       return sb.length() == 0 ? null : sb.toString();
     }
 
+    /**
+     * Gets the set of supported application options.
+     * @return the options to be used within the application.
+     */
     public static Options getOptions() {
       // create Options
       Option hostNameOption = Option.builder()
-          .argName("s").longOpt(SERVICE_ROOT).hasArg().desc("service root URL on the host").build();
+          .argName("s").longOpt(SERVICE_ROOT).hasArg()
+          .desc("Service root URL on the host.")
+          .build();
 
       Option bearerTokenOption = Option.builder()
-          .argName("b").longOpt(BEARER_TOKEN).hasArg().desc("the bearer token to be used with the request").build();
+          .argName("b").longOpt(BEARER_TOKEN).hasArg()
+          .desc("Bearer token to be used with the request.")
+          .build();
 
       Option inputFileOption = Option.builder()
-          .argName("i").longOpt(INPUT_FILE).hasArg().desc("path to input file").build();
+          .argName("i").longOpt(INPUT_FILE).hasArg()
+          .desc("Path to input file.")
+          .build();
 
       Option outputFileOption = Option.builder()
-          .argName("o").longOpt(OUTPUT_FILE).hasArg().desc("path to output file").build();
+          .argName("o").longOpt(OUTPUT_FILE).hasArg()
+          .desc("Path to output file.")
+          .build();
 
       Option uriOption = Option.builder()
-          .argName("u").longOpt(URI).hasArg().desc("URI for raw request").build();
+          .argName("u").longOpt(URI).hasArg()
+          .desc("URI for raw request.")
+          .build();
 
       Option filterOption = Option.builder()
-          .argName("f").longOpt(FILTER).hasArg().desc("if <filter> is passed, then readEntities will use it").build();
+          .argName("f").longOpt(FILTER).hasArg()
+          .desc("If <filter> is passed, then readEntities will use it.")
+          .build();
 
       Option limit = Option.builder()
-          .argName("l").longOpt(LIMIT).hasArg().desc("the number of records to fetch, or -1 to fetch all").build();
+          .argName("l").longOpt(LIMIT).hasArg()
+          .desc("The number of records to fetch, or -1 to fetch all.")
+          .build();
 
       Option entityName = Option.builder()
-          .argName("n").longOpt(ENTITY_NAME).hasArg().desc("the name of the entity to fetch, e.g. Property").build();
+          .argName("n").longOpt(ENTITY_NAME).hasArg()
+          .desc("The name of the entity to fetch, e.g. Property.")
+          .build();
+
+      Option contentType = Option.builder()
+          .argName("t").longOpt(CONTENT_TYPE).hasArg()
+          .desc("Results format: JSON (default), JSON_NO_METADATA, JSON_FULL_METADATA, XML.")
+          .build();
 
       Option useEdmEnabledClient = Option.builder()
-          .argName("e").longOpt(USE_EDM_ENABLED_CLIENT).desc("present if an EdmEnabledClient should be used.").build();
+          .argName("e").longOpt(USE_EDM_ENABLED_CLIENT)
+          .desc("present if an EdmEnabledClient should be used.")
+          .build();
 
       Option helpOption = Option.builder()
-          .argName("?").longOpt(HELP).hasArg(false).desc("print help").build();
+          .argName("?").longOpt(HELP).hasArg(false)
+          .desc("print help")
+          .build();
 
       OptionGroup actions = new OptionGroup()
-          .addOption(Option.builder().argName("m").longOpt(ACTIONS.GET_METADATA).desc("fetches metadata from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
-          .addOption(Option.builder().argName("r").longOpt(ACTIONS.READ_ENTITIES).desc("reads <entityName> from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
-          .addOption(Option.builder().argName("g").longOpt(ACTIONS.GET_ENTITY_SET).desc("executes GET on <uri> using the given <serviceRoot> and <bearerToken>.").build())
-          .addOption(Option.builder().argName("v").longOpt(ACTIONS.VALIDATE_METADATA).desc("validates previously-fetched metadata in the <inputFile> path.").build())
-          .addOption(Option.builder().argName("w").longOpt(ACTIONS.SAVE_RAW_GET_REQUEST).desc("performs GET from <requestURI> and saves output to <outputFile>.").build())
-          .addOption(Option.builder().argName("c").longOpt(ACTIONS.CONVERT_EDMX_TO_OAI).desc("converts EDMX in <inputFile> to OAI, saving it in <inputFile>.swagger.json").build());
+          .addOption(Option.builder().argName("m").longOpt(ACTIONS.GET_METADATA)
+              .desc("fetches metadata from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
+          .addOption(Option.builder().argName("r").longOpt(ACTIONS.READ_ENTITIES)
+              .desc("reads <entityName> from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
+          .addOption(Option.builder().argName("g").longOpt(ACTIONS.GET_ENTITY_SET)
+              .desc("executes GET on <uri> using the given <serviceRoot> and <bearerToken>.").build())
+          .addOption(Option.builder().argName("v").longOpt(ACTIONS.VALIDATE_METADATA)
+              .desc("validates previously-fetched metadata in the <inputFile> path.").build())
+          .addOption(Option.builder().argName("w").longOpt(ACTIONS.SAVE_RAW_GET_REQUEST)
+              .desc("performs GET from <requestURI> using the given <bearerToken> and saves output to <outputFile>.").build())
+          .addOption(Option.builder().argName("c").longOpt(ACTIONS.CONVERT_EDMX_TO_OAI)
+              .desc("converts EDMX in <inputFile> to OAI, saving it in <inputFile>.swagger.json").build());
 
       return new Options()
           .addOption(helpOption)
@@ -346,6 +382,7 @@ public class Main {
           .addOption(useEdmEnabledClient)
           .addOption(uriOption)
           .addOption(filterOption)
+          .addOption(contentType)
           .addOptionGroup(actions);
     }
   }

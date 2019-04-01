@@ -16,6 +16,7 @@ import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.apache.olingo.commons.api.http.HttpStatusCode;
 
+import javax.swing.text.AbstractDocument;
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
@@ -271,12 +272,14 @@ public class Commander {
    * Writes an Entity Set to the given outputFilePath.
    * @param entitySet - the ClientEntitySet to serialize.
    * @param outputFilePath - the path to write the file to.
+   * @param contentType - the OData content type to write with. Currently supported options are
+   *                    JSON, JSON_NO_METADATA, JSON_FULL_METADATA, and XML.
    */
-  public void serializeEntitySet(ClientEntitySet entitySet, String outputFilePath, ContentType format) {
+  public void serializeEntitySet(ClientEntitySet entitySet, String outputFilePath, ContentType contentType) {
 
     try {
       log.info("Serializing " + entitySet.getEntities().size() + " item(s) to " + outputFilePath);
-      client.getSerializer(format).write(new FileWriter(outputFilePath), client.getBinder().getEntitySet(entitySet));
+      client.getSerializer(contentType).write(new FileWriter(outputFilePath), client.getBinder().getEntitySet(entitySet));
     } catch (Exception ex) {
       System.out.println(ex.getMessage());
       System.exit(NOT_OK);
@@ -328,5 +331,36 @@ public class Commander {
     public Commander build() {
       return new Commander(serviceRoot, bearerToken, useEdmEnabledClient);
     }
+  }
+
+  /**
+   * Translates supported string formats into those of ContentType.
+   *
+   * See: https://olingo.apache.org/javadoc/odata4/org/apache/olingo/commons/api/format/ContentType.html#TEXT_HTML
+   *
+   * @param contentType the string representation of the requested content type.
+   * @return one of ContentType if a match is found, or ContentType.JSON if no other format is available.
+   */
+  public static ContentType getContentType(String contentType) {
+    String JSON = "JSON", JSON_NO_METADATA = "JSON_NO_METADATA", JSON_FULL_METADATA = "JSON_FULL_METADATA", XML = "XML";
+    ContentType defaultType = ContentType.JSON;
+    ContentType type;
+
+    if (contentType == null) {
+      return defaultType;
+    } else {
+      if (contentType.matches(JSON)) {
+        type = ContentType.JSON;
+      } else if (contentType.matches(JSON_NO_METADATA)) {
+        type = ContentType.JSON_NO_METADATA;
+      } else if (contentType.matches(JSON_FULL_METADATA)) {
+        type = ContentType.JSON_FULL_METADATA;
+      } else if (contentType.matches(XML)) {
+        type = ContentType.APPLICATION_XML;
+      } else {
+        type = ContentType.JSON;
+      }
+    }
+    return type;
   }
 }
