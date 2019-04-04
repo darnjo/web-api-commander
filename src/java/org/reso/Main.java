@@ -2,31 +2,25 @@ package org.reso;
 
 import org.apache.commons.cli.*;
 import org.apache.log4j.Logger;
-import org.apache.olingo.client.api.Configuration;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
-import org.apache.olingo.client.api.uri.URIBuilder;
-import org.apache.olingo.client.api.uri.URIFilter;
-import org.apache.olingo.client.core.ConfigurationImpl;
-import org.apache.olingo.client.core.uri.URIBuilderImpl;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 
-import java.net.URI;
 import java.util.Arrays;
 
 /**
  * Entry point of the RESO Web API Commander, which is a command line OData client that uses the Java Olingo
  * Client Library to handle OData and the Apache CXF library to handle Auth. Currently, the following forms
  * of Auth are supported:
- *
- *  - Bearer Tokens
- *
+ * <p>
+ * - Bearer Tokens
+ * <p>
  * Exposes several different actions for working with OData-based WebAPI servers.
  * This application is structured so that the Main class is an OData WebAPI consumer
  * using the Commander class, which contains the actual methods for working with OData.
- *
+ * <p>
  * For usage, see README.
- *
+ * <p>
  * TODO: add better handling for required parameters, currently just checks if they're there and prints help if not
  */
 public class Main {
@@ -120,17 +114,17 @@ public class Main {
          *
          * Results are written to outputFile.
          */
-          try {
+        try {
 
-            ClientEntitySet results = commander.getEntitySet(uri);
+          ClientEntitySet results = commander.getEntitySet(uri);
 
-            if (results != null) {
-              commander.serializeEntitySet(results, outputFile, contentType);
-            }
-          } catch (Exception ex) {
-            System.exit(Commander.NOT_OK);
-            log.error(ex.toString());
+          if (results != null) {
+            commander.serializeEntitySet(results, outputFile, contentType);
           }
+        } catch (Exception ex) {
+          System.exit(Commander.NOT_OK);
+          log.error(ex.toString());
+        }
 
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.READ_ENTITIES)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.READ_ENTITIES);
@@ -174,6 +168,7 @@ public class Main {
 
   /**
    * Prints an error message and the help for the application, then exits with 1.
+   *
    * @param msg the message to print
    */
   private static void printErrorMsgAndExit(String msg) {
@@ -184,6 +179,7 @@ public class Main {
 
   /**
    * Prints help
+   *
    * @param options the options to print help for.
    */
   private static void printHelp(Options options) {
@@ -251,13 +247,13 @@ public class Main {
 
     /**
      * Validates options for the various actions exposed in Main.
-     *
+     * <p>
      * TODO: determine if there's a way this can be handled using Commons Command.
      *
-     * @param cmd a reference to the current Command instance
+     * @param cmd    a reference to the current Command instance
      * @param action one of APP_OPTIONS.ACTIONS, representing the action to be performed
-     *
-     * If the given action doesn't validate, then an error message will be printed and the application will exit.
+     *               <p>
+     *               If the given action doesn't validate, then an error message will be printed and the application will exit.
      */
     public static void validateAction(CommandLine cmd, String action) {
       String validationResponse = null;
@@ -284,7 +280,8 @@ public class Main {
 
     /**
      * Validates options passed to the command line
-     * @param cmd a reference to the command line instance
+     *
+     * @param cmd     a reference to the command line instance
      * @param options a list of options to validate
      * @return an error string containing a formatted message when validation fails, otherwise null (valid)
      */
@@ -302,6 +299,7 @@ public class Main {
 
     /**
      * Gets the set of supported application options.
+     *
      * @return the options to be used within the application.
      */
     public static Options getOptions() {

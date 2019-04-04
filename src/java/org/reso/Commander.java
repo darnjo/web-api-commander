@@ -2,7 +2,6 @@ package org.reso;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.log4j.Logger;
 import org.apache.olingo.client.api.ODataClient;
 import org.apache.olingo.client.api.communication.request.retrieve.XMLMetadataRequest;
@@ -10,20 +9,11 @@ import org.apache.olingo.client.api.communication.response.ODataRetrieveResponse
 import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
-import org.apache.olingo.client.api.uri.URIBuilder;
-import org.apache.olingo.client.core.ConfigurationImpl;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
-import org.apache.olingo.client.core.uri.URIBuilderImpl;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.apache.olingo.commons.api.http.HttpStatusCode;
-import org.apache.olingo.server.api.OData;
-import org.apache.olingo.server.api.uri.UriHelper;
-import org.apache.olingo.server.core.uri.UriHelperImpl;
-import org.apache.olingo.server.core.uri.parser.Parser;
-import org.apache.olingo.server.core.uri.parser.ParserHelper;
-import sun.text.normalizer.UTF16;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
@@ -36,14 +26,13 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.net.URI;
 import java.net.URL;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
 
 /**
+ * URI
  * Most of the work done by the WebAPI commander is done by this class. Its public methods are, therefore,
  * the ones the Client programmer is expected to use.
  */
@@ -60,12 +49,13 @@ public class Commander {
   /**
    * Creates a Commander instance that uses the given Bearer token for authentication and allows the Client
    * to specify whether to use an EdmEnabledClient or normal OData client.
-   *
+   * <p>
    * NOTE: serviceRoot can sometimes be null, but is required if useEdmEnabledClient is true.
-   *        A check has been added for this condition.
-   **
-   * @param serviceRoot the service root of the WebAPI server.
-   * @param bearerToken the bearer token to use to authenticate with the given serviceRoot.
+   * A check has been added for this condition.
+   * *
+   *
+   * @param serviceRoot         the service root of the WebAPI server.
+   * @param bearerToken         the bearer token to use to authenticate with the given serviceRoot.
    * @param useEdmEnabledClient if true, the payload is checked against the Server's metadata for actions
    *                            that support it.
    */
@@ -77,9 +67,10 @@ public class Commander {
 
   /**
    * Private constructor for internal use.
-   *
+   * <p>
    * Creates a Commander instance that allows the caller to use an EdmEnabledClient,
    * meaning that all payloads will be verified against the metadata published at serviceRoot.
+   *
    * @param serviceRoot the service root of the WebAPI server.
    */
   private Commander(String serviceRoot, boolean useEdmEnabledClient) {
@@ -96,7 +87,7 @@ public class Commander {
 
   /**
    * Gets server metadata in EDMX format.
-   *
+   * <p>
    * TODO: add optional validation upon fetch
    *
    * @return Edm representation of the server metadata.
@@ -124,6 +115,7 @@ public class Commander {
 
   /**
    * Validates given XMLMetadata
+   *
    * @param metadata the XMLMetadata to be validated
    * @return true if the metadata is valid, meaning that it's also a valid OData 4 Service Document
    */
@@ -149,6 +141,7 @@ public class Commander {
 
   /**
    * Validates the given metadata contained in the given file path.
+   *
    * @param pathToEdmx the path to look for metadata in. Assumes metadata is stored as XML.
    * @return true if the metadata is valid and false otherwise.
    */
@@ -201,21 +194,22 @@ public class Commander {
 
   /**
    * Prepares a URI for an OData request
-   *  - has some odd rules, seemingly.
+   * - has some odd rules, seemingly.
    */
   Function<String, URI> prepareURI = uriString -> {
     try {
       return new URL(uriString.replace(" ", "%20")).toURI();
-          //serviceRoot + URLEncoder.encode(url.getQuery(), StandardCharsets.UTF_8.name())); //shouldn't this work?
+      //serviceRoot + URLEncoder.encode(url.getQuery(), StandardCharsets.UTF_8.name())); //shouldn't this work?
     } catch (Exception ex) {
       log.error("ERROR in prepareURI: " + ex.toString());
     }
-    return  null;
+    return null;
   };
 
   /**
    * Executes a get request on URI and saves raw response to outputFilePath.
-   * @param requestUri the URI to make the request against
+   *
+   * @param requestUri     the URI to make the request against
    * @param outputFilePath the outputFilePath to write the response to
    */
   public void saveRawGetRequest(String requestUri, String outputFilePath) {
@@ -237,7 +231,7 @@ public class Commander {
    * TODO: add a parallel function which can create n queries at a time and download their results
    *
    * @param requestUri the request URI to read from.
-   * @param limit the limit for the number of records to read from the Server. Use -1 to fetch all.
+   * @param limit      the limit for the number of records to read from the Server. Use -1 to fetch all.
    * @return a ClientEntitySet containing any entities found.
    */
   public ClientEntitySet readEntities(String requestUri, int limit) {
@@ -280,6 +274,7 @@ public class Commander {
   /**
    * Converts metadata in EDMX format to metadata in Swagger 2.0 format.
    * Converted file will have the same name as the input file, with .swagger.json appended to the name.
+   *
    * @param pathToEDMX the metadata file to convert.
    */
   public void convertMetadata(String pathToEDMX) {
@@ -302,10 +297,11 @@ public class Commander {
 
   /**
    * Writes an Entity Set to the given outputFilePath.
-   * @param entitySet - the ClientEntitySet to serialize.
+   *
+   * @param entitySet      - the ClientEntitySet to serialize.
    * @param outputFilePath - the path to write the file to.
-   * @param contentType - the OData content type to write with. Currently supported options are
-   *                    JSON, JSON_NO_METADATA, JSON_FULL_METADATA, and XML.
+   * @param contentType    - the OData content type to write with. Currently supported options are
+   *                       JSON, JSON_NO_METADATA, JSON_FULL_METADATA, and XML.
    */
   public void serializeEntitySet(ClientEntitySet entitySet, String outputFilePath, ContentType contentType) {
 
@@ -322,7 +318,7 @@ public class Commander {
    * Writes the given entitySet to the given outputFilePath.
    * Writes in JSON format.
    *
-   * @param entitySet the ClientEntitySet to serialize.
+   * @param entitySet      the ClientEntitySet to serialize.
    * @param outputFilePath the outputFilePath used to write to.
    */
   public void serializeEntitySet(ClientEntitySet entitySet, String outputFilePath) {
@@ -338,7 +334,8 @@ public class Commander {
     String bearerToken;
     boolean useEdmEnabledClient;
 
-    public Builder() {}
+    public Builder() {
+    }
 
     public Builder serviceRoot(String serviceRoot) {
       this.serviceRoot = serviceRoot;
@@ -367,7 +364,7 @@ public class Commander {
 
   /**
    * Translates supported string formats into those of ContentType.
-   *
+   * <p>
    * See: https://olingo.apache.org/javadoc/odata4/org/apache/olingo/commons/api/format/ContentType.html#TEXT_HTML
    *
    * @param contentType the string representation of the requested content type.

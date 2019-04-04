@@ -16,6 +16,7 @@ public class TokenHttpClientFactory extends DefaultHttpClientFactory {
 
   /**
    * Constructor for use with tokens.
+   *
    * @param token the token to be used for server requests.
    */
   public TokenHttpClientFactory(String token) {
@@ -29,7 +30,7 @@ public class TokenHttpClientFactory extends DefaultHttpClientFactory {
 
     // add auth token using the vendor's bearer token
     client.addRequestInterceptor((request, context) ->
-      request.addHeader("Authorization", "Bearer " + token));
+        request.addHeader("Authorization", "Bearer " + token));
 
     return client;
   }
