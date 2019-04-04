@@ -27,10 +27,9 @@ usage: java -jar web-api-commander
                             in <inputFile>.swagger.json
     --entityName <n>        The name of the entity to fetch, e.g.
                             Property.
-    --filter <f>            If <filter> is passed, then readEntities will
-                            use it.
-    --getEntitySet          executes GET on <uri> using the given
-                            <bearerToken> and <outputFile>.
+    --getEntitySet          executes GET on <uri> using the given <bearerToken>
+                            and optional <serviceRoot> when --useEdmEnabledClient
+                            is specified
     --getMetadata           fetches metadata from <serviceRoot> using
                             <bearerToken> and saves results in
                             <outputFile>.
@@ -39,17 +38,17 @@ usage: java -jar web-api-commander
     --limit <l>             The number of records to fetch, or -1 to fetch
                             all.
     --outputFile <o>        Path to output file.
-    --readEntities          reads <entityName> from <serviceRoot> using
-                            <bearerToken> and saves results in
+    --readEntities          reads Entities from the given <uri> and 
+                            <bearerToken> up to --limit results, and saves them in
+                            <outputFile>. Pass -1 for all results.
+    --saveRawGetRequest     performs GET from <requestURI> using the given
+                            <bearerToken> and saves output to
                             <outputFile>.
-    --saveRawGetRequest     performs GET from <requestURI> using the 
-                            given <bearerToken> and saves the output to <outputFile>.
     --serviceRoot <s>       Service root URL on the host.
     --uri <u>               URI for raw request.
     --useEdmEnabledClient   present if an EdmEnabledClient should be used.
     --validateMetadata      validates previously-fetched metadata in the
                             <inputFile> path.
-
 ```
 
 ## Usage
@@ -103,18 +102,18 @@ Commander can pull the Server's metadata in addition to the results from the giv
 The `getEntitySet` action also supports the `--contentType` option, which will change how results are 
 written. Currently supported options are: `JSON`, `JSON_NO_METADATA`, `JSON_FULL_METADATA`, and `XML`.
 
-## 4. Getting raw results from a given `uri` using `saveGetRawRequest`
+## 4. Getting raw results from a given `uri` using `saveRawGetRequest`
 
 If additional processing using the OData Olingo library is not needed, raw requests may be issued 
 against the server instead.
 
-The `--saveGetRawRequest` action writes the raw response from a GET request to the given `--uri` 
+The `--saveRawGetRequest` action writes the raw response from a GET request to the given `--uri` 
 from the Web API server directly to the given `--outputFile`.
 
 Usage:
 
 ```
-java -jar web-api-commander.jar --uri <u> --bearerToken <b> --outputFile <o>
+java -jar web-api-commander.jar --saveRawGetRequest --uri <u> --bearerToken <b> --outputFile <o>
 ```
 
 Results are not checked against Server Metadata and are not written in any specific OData format.
