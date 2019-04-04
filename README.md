@@ -27,10 +27,9 @@ usage: java -jar web-api-commander
                             in <inputFile>.swagger.json
     --entityName <n>        The name of the entity to fetch, e.g.
                             Property.
-    --filter <f>            If <filter> is passed, then readEntities will
-                            use it.
-    --getEntitySet          executes GET on <uri> using the given
-                            <bearerToken> and <outputFile>.
+    --getEntitySet          executes GET on <uri> using the given <bearerToken>
+                            and optional <serviceRoot> when --useEdmEnabledClient
+                            is specified
     --getMetadata           fetches metadata from <serviceRoot> using
                             <bearerToken> and saves results in
                             <outputFile>.
@@ -39,17 +38,17 @@ usage: java -jar web-api-commander
     --limit <l>             The number of records to fetch, or -1 to fetch
                             all.
     --outputFile <o>        Path to output file.
-    --readEntities          reads <entityName> from <serviceRoot> using
-                            <bearerToken> and saves results in
+    --readEntities          reads Entities from the given <uri> and 
+                            <bearerToken> up to --limit results, and saves them in
+                            <outputFile>. Pass -1 for all results.
+    --saveRawGetRequest     performs GET from <requestURI> using the given
+                            <bearerToken> and saves output to
                             <outputFile>.
-    --saveRawGetRequest     performs GET from <requestURI> using the 
-                            given <bearerToken> and saves the output to <outputFile>.
     --serviceRoot <s>       Service root URL on the host.
     --uri <u>               URI for raw request.
     --useEdmEnabledClient   present if an EdmEnabledClient should be used.
     --validateMetadata      validates previously-fetched metadata in the
                             <inputFile> path.
-
 ```
 
 ## Usage

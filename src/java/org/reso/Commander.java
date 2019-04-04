@@ -11,6 +11,7 @@ import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
 import org.apache.olingo.client.api.uri.URIBuilder;
+import org.apache.olingo.client.core.ConfigurationImpl;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
 import org.apache.olingo.client.core.uri.URIBuilderImpl;
@@ -170,13 +171,13 @@ public class Commander {
    * in the way that readEntitySet does. If the Commander has been instantiated with an EdmEnabledClient,
    * results will be validated against server metadata while being fetched.
    *
-   * @param requestURI the full OData WebAPI URI used to fetch records. requestURI is expected to be URL Encoded.
+   * @param requestURI the full OData WebAPI URI used to fetch records.
    * @return a ClientEntitySet containing the requested records, or null if nothing was found.
    */
-  public ClientEntitySet getEntitySet(URI requestURI) {
+  public ClientEntitySet getEntitySet(String requestURI) {
     try {
       ODataRetrieveResponse<ClientEntitySet> response
-          = client.getRetrieveRequestFactory().getEntitySetRequest(requestURI).execute();
+          = client.getRetrieveRequestFactory().getEntitySetRequest(prepareURI.apply(requestURI)).execute();
 
       if (response.getStatusCode() == HttpStatusCode.OK.getStatusCode()) {
         return response.getBody();
@@ -235,11 +236,11 @@ public class Commander {
    * TODO: add a function that can write a page at a time.
    * TODO: add a parallel function which can create n queries at a time and download their results
    *
-   * @param resourceName the name of the resource.
+   * @param requestUri the request URI to read from.
    * @param limit the limit for the number of records to read from the Server. Use -1 to fetch all.
    * @return a ClientEntitySet containing any entities found.
    */
-  public ClientEntitySet readEntities(String resourceName, String filter, int limit) {
+  public ClientEntitySet readEntities(String requestUri, int limit) {
 
     List<ClientEntity> result = new ArrayList<>();
     ODataRetrieveResponse<ClientEntitySet> entitySetResponse = null;
@@ -247,14 +248,12 @@ public class Commander {
 
     // function to create URIs from skips and local params
     Function<Integer, URI> buildUri = skip -> {
-      URIBuilder builder = client.newURIBuilder(serviceRoot).appendEntitySetSegment(resourceName);
-      if (filter != null) builder.filter(filter);
-      if (skip != null && skip > 0) builder.skip(skip);
-      return builder.build();
+      String val = prepareURI.apply(requestUri).toString();
+      if (skip != null && skip > 0) val += "&$skip=" + skip;
+      return URI.create(val);
     };
 
     try {
-
       URI uri = buildUri.apply(null);
 
       do {
