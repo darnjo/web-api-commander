@@ -90,9 +90,9 @@ public class Main {
 
         log.info("\nChecking Metadata for validity...");
         if (commander.validateMetadata(outputFile)) {
-          log.info("--> Valid Metadata!");
+          log.info("==> Valid Metadata!");
         } else {
-          log.error("--> Invalid Metadata!");
+          log.error("==> Invalid Metadata!");
           System.exit(Commander.NOT_OK);
         }
 

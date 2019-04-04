@@ -54,7 +54,7 @@ public class Commander {
 
   private static final Logger log = Logger.getLogger(Commander.class);
 
-  public static int NOT_OK = 1;
+  final static int NOT_OK = 1;
 
   /**
    * Creates a Commander instance that uses the given Bearer token for authentication and allows the Client
@@ -245,32 +245,36 @@ public class Commander {
     ODataRetrieveResponse<ClientEntitySet> entitySetResponse = null;
     ClientEntitySet results = new ClientEntitySetImpl();
 
-    try {
-      URIBuilder uriBuilder = client.newURIBuilder(serviceRoot).appendEntitySetSegment(resourceName);
+    // function to create URIs from skips and local params
+    Function<Integer, URI> buildUri = skip -> {
+      URIBuilder builder = client.newURIBuilder(serviceRoot).appendEntitySetSegment(resourceName);
+      if (filter != null) builder.filter(filter);
+      if (skip != null && skip > 0) builder.skip(skip);
+      return builder.build();
+    };
 
-      //add filter if present
-      if (filter != null) {
-        uriBuilder.filter(filter);
-      }
+    try {
+
+      URI uri = buildUri.apply(null);
 
       do {
-        entitySetResponse = client.getRetrieveRequestFactory().getEntitySetRequest(uriBuilder.build()).execute();
+        entitySetResponse = client.getRetrieveRequestFactory().getEntitySetRequest(uri).execute();
 
         result.addAll(entitySetResponse.getBody().getEntities());
 
         //some of the next links don't currently work, so we can't use getNext() reliably.
         //we can, however, use the results of what we've downloaded previously to inform the skip.
-        uriBuilder.skip(result.size()).build();
+        uri = buildUri.apply(result.size());
 
       } while (entitySetResponse.getBody().getNext() != null && (limit == -1 || result.size() < limit));
 
       results.getEntities().addAll(result.subList(0, limit == -1 ? result.size() : Math.min(limit, result.size())));
 
     } catch (Exception ex) {
+      //NOTE: sometimes a bad skip link in the payload can cause exceptions ... the Olingo library parses the responses.
       log.error("ERROR: readEntities could not continue. " + ex.toString());
       System.exit(NOT_OK);
     }
-
     return results;
   }
 
@@ -280,13 +284,16 @@ public class Commander {
    * @param pathToEDMX the metadata file to convert.
    */
   public void convertMetadata(String pathToEDMX) {
+    final String FILENAME_EXTENSION = ".swagger.json";
+    final String XSLT_FILENAME = "./V4-CSDL-to-OpenAPI.xslt";
+
     try {
       TransformerFactory factory = TransformerFactory.newInstance();
-      Source xslt = new StreamSource(new File("./V4-CSDL-to-OpenAPI.xslt"));
+      Source xslt = new StreamSource(new File(XSLT_FILENAME));
       Transformer transformer = factory.newTransformer(xslt);
 
       Source text = new StreamSource(new File(pathToEDMX));
-      transformer.transform(text, new StreamResult(new File(pathToEDMX + ".swagger.json")));
+      transformer.transform(text, new StreamResult(new File(pathToEDMX + FILENAME_EXTENSION)));
 
     } catch (Exception ex) {
       log.error("ERROR: convertMetadata failed. " + ex.toString());
