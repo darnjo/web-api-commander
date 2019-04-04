@@ -103,18 +103,18 @@ Commander can pull the Server's metadata in addition to the results from the giv
 The `getEntitySet` action also supports the `--contentType` option, which will change how results are 
 written. Currently supported options are: `JSON`, `JSON_NO_METADATA`, `JSON_FULL_METADATA`, and `XML`.
 
-## 4. Getting raw results from a given `uri` using `saveGetRawRequest`
+## 4. Getting raw results from a given `uri` using `saveRawGetRequest`
 
 If additional processing using the OData Olingo library is not needed, raw requests may be issued 
 against the server instead.
 
-The `--saveGetRawRequest` action writes the raw response from a GET request to the given `--uri` 
+The `--saveRawGetRequest` action writes the raw response from a GET request to the given `--uri` 
 from the Web API server directly to the given `--outputFile`.
 
 Usage:
 
 ```
-java -jar web-api-commander.jar --uri <u> --bearerToken <b> --outputFile <o>
+java -jar web-api-commander.jar --saveRawGetRequest --uri <u> --bearerToken <b> --outputFile <o>
 ```
 
 Results are not checked against Server Metadata and are not written in any specific OData format.
