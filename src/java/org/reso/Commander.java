@@ -2,6 +2,8 @@ package org.reso;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.log4j.Logger;
 import org.apache.olingo.client.api.ODataClient;
 import org.apache.olingo.client.api.communication.request.retrieve.XMLMetadataRequest;
@@ -13,7 +15,6 @@ import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
-import org.apache.olingo.commons.api.http.HttpStatusCode;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
@@ -30,7 +31,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-
 /**
  * URI
  * Most of the work done by the WebAPI commander is done by this class. Its public methods are, therefore,
@@ -39,7 +39,6 @@ import java.util.function.Function;
 public class Commander {
   private ODataClient client;
   private String serviceRoot;
-  private String bearerToken;
   private boolean useEdmEnabledClient;
 
   private static final Logger log = Logger.getLogger(Commander.class);
@@ -61,7 +60,6 @@ public class Commander {
    */
   public Commander(String serviceRoot, String bearerToken, boolean useEdmEnabledClient) {
     this(serviceRoot, useEdmEnabledClient);
-    this.bearerToken = bearerToken;
     client.getConfiguration().setHttpClientFactory(new TokenHttpClientFactory(bearerToken));
   }
 
@@ -107,7 +105,7 @@ public class Commander {
       // read metadata from binary to ensure it deserializes properly and return
       return client.getReader().readMetadata(new ByteArrayInputStream(buffer));
     } catch (Exception ex) {
-      System.err.println(ex.toString());
+      log.error(ex.toString());
       System.exit(NOT_OK);
     }
     return null;
@@ -160,46 +158,25 @@ public class Commander {
   }
 
   /**
-   * Retrieves a client entity set using the given requestURI, but doesn't perform automatic paging
-   * in the way that readEntitySet does. If the Commander has been instantiated with an EdmEnabledClient,
-   * results will be validated against server metadata while being fetched.
-   *
-   * @param requestURI the full OData WebAPI URI used to fetch records.
-   * @return a ClientEntitySet containing the requested records, or null if nothing was found.
-   */
-  public ClientEntitySet getEntitySet(String requestURI) {
-    try {
-      ODataRetrieveResponse<ClientEntitySet> response
-          = client.getRetrieveRequestFactory().getEntitySetRequest(prepareURI.apply(requestURI)).execute();
-
-      if (response.getStatusCode() == HttpStatusCode.OK.getStatusCode()) {
-        return response.getBody();
-      } else {
-        log.error("ERROR:getEntitySet received a response status other than OK (200)!");
-        System.exit(NOT_OK);
-      }
-    } catch (IllegalArgumentException iaex) {
-      if (useEdmEnabledClient) {
-        log.error("\nError encountered while using the EdmEnabledClient. This usually means metadata were invalid!");
-      }
-      log.error(iaex.getMessage());
-      System.exit(NOT_OK);
-    } catch (Exception ex) {
-      log.error(ex.toString());
-      System.exit(NOT_OK);
-    }
-
-    return null;
-  }
-
-  /**
    * Prepares a URI for an OData request
-   * - has some odd rules, seemingly.
    */
   Function<String, URI> prepareURI = uriString -> {
     try {
-      return new URL(uriString.replace(" ", "%20")).toURI();
-      //serviceRoot + URLEncoder.encode(url.getQuery(), StandardCharsets.UTF_8.name())); //shouldn't this work?
+      //quick and dirty solution for now
+      URL url = new URL(uriString.replace(" ", "%20"));
+      return url.toURI();
+
+      /*
+        //This should work ... some servers don't like URLEncoded queries though...
+        URIBuilder uriBuilder = new URIBuilder();
+        uriBuilder.setScheme(url.getProtocol());
+
+        uriBuilder.setHost(url.getHost());
+        if (url.getPath() != null) uriBuilder.setPath(url.getPath());
+        if (url.getQuery() != null) uriBuilder.setQuery(URLEncoder.encode(url.getQuery(), StandardCharsets.UTF_8.toString()));
+        return uriBuilder.build();
+
+       */
     } catch (Exception ex) {
       log.error("ERROR in prepareURI: " + ex.toString());
     }
@@ -234,41 +211,54 @@ public class Commander {
    * @param limit      the limit for the number of records to read from the Server. Use -1 to fetch all.
    * @return a ClientEntitySet containing any entities found.
    */
-  public ClientEntitySet readEntities(String requestUri, int limit) {
+  public ClientEntitySet getEntitySet(String requestUri, Integer limit) {
 
-    List<ClientEntity> result = new ArrayList<>();
+    List<ClientEntity> entities = new ArrayList<>();
     ODataRetrieveResponse<ClientEntitySet> entitySetResponse = null;
     ClientEntitySet results = new ClientEntitySetImpl();
 
     // function to create URIs from skips and local params
     Function<Integer, URI> buildUri = skip -> {
-      String val = prepareURI.apply(requestUri).toString();
-      if (skip != null && skip > 0) val += "&$skip=" + skip;
-      return URI.create(val);
+      try {
+        URIBuilder uriBuilder = new URIBuilder(prepareURI.apply(requestUri));
+        if (skip != null && skip > 0) uriBuilder.addParameter("$skip", skip.toString());
+        return uriBuilder.build();
+      } catch (Exception ex) {
+        log.error("ERROR: " + ex.toString());
+      }
+      return null;
     };
 
     try {
       URI uri = buildUri.apply(null);
 
+      log.info("Fetching results from: " + requestUri);
+
       do {
         entitySetResponse = client.getRetrieveRequestFactory().getEntitySetRequest(uri).execute();
+        entities.addAll(entitySetResponse.getBody().getEntities());
 
-        result.addAll(entitySetResponse.getBody().getEntities());
+        log.debug(limit > 0 ? Math.min(entities.size(), limit) : entities.size());
 
         //some of the next links don't currently work, so we can't use getNext() reliably.
         //we can, however, use the results of what we've downloaded previously to inform the skip.
-        uri = buildUri.apply(result.size());
+        uri = buildUri.apply(entities.size());
 
-      } while (entitySetResponse.getBody().getNext() != null && (limit == -1 || result.size() < limit));
-
-      results.getEntities().addAll(result.subList(0, limit == -1 ? result.size() : Math.min(limit, result.size())));
+      } while (entitySetResponse.getStatusCode() == HttpStatus.SC_OK && entitySetResponse.getBody().getNext() != null
+          && (limit == -1 || entities.size() < limit));
 
     } catch (Exception ex) {
-      //NOTE: sometimes a bad skip link in the payload can cause exceptions ... the Olingo library parses the responses.
-      log.error("ERROR: readEntities could not continue. " + ex.toString());
+      //NOTE: sometimes a bad skip link in the payload can cause exceptions...the Olingo library validates the responses.
+      log.error("ERROR: getEntitySet could not continue. " + ex.getCause());
       System.exit(NOT_OK);
+    } finally {
+      //trim results size to requested limit
+      results.getEntities().addAll(entities.subList(0, limit > 0 ?
+           Math.min(limit, entities.size()) : entities.size()));
+
+      log.info("Transfer Complete!");
+      return results;
     }
-    return results;
   }
 
   /**
@@ -281,17 +271,21 @@ public class Commander {
     final String FILENAME_EXTENSION = ".swagger.json";
     final String XSLT_FILENAME = "./V4-CSDL-to-OpenAPI.xslt";
 
-    try {
-      TransformerFactory factory = TransformerFactory.newInstance();
-      Source xslt = new StreamSource(new File(XSLT_FILENAME));
-      Transformer transformer = factory.newTransformer(xslt);
+    if (validateMetadata(pathToEDMX)) {
+      try {
+        TransformerFactory factory = TransformerFactory.newInstance();
+        Source xslt = new StreamSource(new File(XSLT_FILENAME));
+        Transformer transformer = factory.newTransformer(xslt);
 
-      Source text = new StreamSource(new File(pathToEDMX));
-      transformer.transform(text, new StreamResult(new File(pathToEDMX + FILENAME_EXTENSION)));
+        Source text = new StreamSource(new File(pathToEDMX));
+        transformer.transform(text, new StreamResult(new File(pathToEDMX + FILENAME_EXTENSION)));
 
-    } catch (Exception ex) {
-      log.error("ERROR: convertMetadata failed. " + ex.toString());
-      System.exit(NOT_OK);
+      } catch (Exception ex) {
+        log.error("ERROR: convertMetadata failed. " + ex.toString());
+        System.exit(NOT_OK);
+      }
+    } else {
+      log.error("ERROR: invalid metadata! Please ensure metadata is valid using validateMetadata() before proceeding.");
     }
   }
 
@@ -306,7 +300,7 @@ public class Commander {
   public void serializeEntitySet(ClientEntitySet entitySet, String outputFilePath, ContentType contentType) {
 
     try {
-      log.info("Serializing " + entitySet.getEntities().size() + " item(s) to " + outputFilePath);
+      log.info("Saving " + entitySet.getEntities().size() + " item(s) to " + outputFilePath);
       client.getSerializer(contentType).write(new FileWriter(outputFilePath), client.getBinder().getEntitySet(entitySet));
     } catch (Exception ex) {
       System.out.println(ex.getMessage());

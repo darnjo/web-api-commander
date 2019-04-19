@@ -58,7 +58,6 @@ public class Main {
       // pre-load options for later use
       String inputFile = cmd.getOptionValue(APP_OPTIONS.INPUT_FILE, null);
       String outputFile = cmd.getOptionValue(APP_OPTIONS.OUTPUT_FILE, null);
-      String entityName = cmd.getOptionValue(APP_OPTIONS.ENTITY_NAME, null);
       String uri = cmd.getOptionValue(APP_OPTIONS.URI, null);
       ContentType contentType = Commander.getContentType(cmd.getOptionValue(APP_OPTIONS.CONTENT_TYPE, null));
 
@@ -104,8 +103,8 @@ public class Main {
           log.error("ERROR: Invalid Metadata!\n");
           System.exit(Commander.NOT_OK);
         }
-      } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_ENTITY_SET)) {
-        APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_ENTITY_SET);
+      } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_ENTITIES)) {
+        APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_ENTITIES);
 
         /**
          * Gets a ClientEntitySet from the given uri. If the useEdmEnabledClient option was passed,
@@ -116,7 +115,7 @@ public class Main {
          */
         try {
 
-          ClientEntitySet results = commander.getEntitySet(uri);
+          ClientEntitySet results = commander.getEntitySet(uri, limit);
 
           if (results != null) {
             commander.serializeEntitySet(results, outputFile, contentType);
@@ -125,26 +124,6 @@ public class Main {
           System.exit(Commander.NOT_OK);
           log.error(ex.toString());
         }
-
-      } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.READ_ENTITIES)) {
-        APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.READ_ENTITIES);
-
-        /**
-         * Read entities up to limit number of records and writes the results to outputFile.
-         * Optionally takes a filter to be used with the query.
-         *
-         * @see Commander.readEntities()
-         */
-
-        //NOTE: pass -1 to get all entities
-        log.info("Reading " + (limit > 0 ? limit : " all ") + " entities from: " + uri);
-        ClientEntitySet entities = commander.readEntities(uri, limit);
-
-        log.info(entities.getCount() + " entities fetched: ");
-        entities.getEntities().stream().forEach(entity -> log.info(entity.toString()));
-
-        log.info("Saving to file: " + outputFile);
-        commander.serializeEntitySet(entities, outputFile, contentType);
 
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.SAVE_RAW_GET_REQUEST)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.SAVE_RAW_GET_REQUEST);
@@ -239,8 +218,7 @@ public class Main {
       //actions
       public static String GET_METADATA = "getMetadata";
       public static String VALIDATE_METADATA = "validateMetadata";
-      public static String GET_ENTITY_SET = "getEntitySet";
-      public static String READ_ENTITIES = "readEntities";
+      public static String GET_ENTITIES = "getEntities";
       public static String SAVE_RAW_GET_REQUEST = "saveRawGetRequest";
       public static String CONVERT_EDMX_TO_OAI = "convertEDMXtoOAI";
     }
@@ -262,10 +240,8 @@ public class Main {
         validationResponse = validateOptions(cmd, SERVICE_ROOT, BEARER_TOKEN, OUTPUT_FILE);
       } else if (action.matches(ACTIONS.VALIDATE_METADATA)) {
         validationResponse = validateOptions(cmd, INPUT_FILE);
-      } else if (action.matches(ACTIONS.GET_ENTITY_SET)) {
+      } else if (action.matches(ACTIONS.GET_ENTITIES)) {
         validationResponse = validateOptions(cmd, BEARER_TOKEN, URI, OUTPUT_FILE);
-      } else if (action.matches(ACTIONS.READ_ENTITIES)) {
-        validationResponse = validateOptions(cmd, BEARER_TOKEN, LIMIT, OUTPUT_FILE);
       } else if (action.matches(ACTIONS.SAVE_RAW_GET_REQUEST)) {
         validationResponse = validateOptions(cmd, BEARER_TOKEN, URI, OUTPUT_FILE);
       } else if (action.matches(ACTIONS.CONVERT_EDMX_TO_OAI)) {
@@ -357,12 +333,10 @@ public class Main {
       OptionGroup actions = new OptionGroup()
           .addOption(Option.builder().argName("m").longOpt(ACTIONS.GET_METADATA)
               .desc("fetches metadata from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
-          .addOption(Option.builder().argName("r").longOpt(ACTIONS.READ_ENTITIES)
-              .desc("reads Entities from the given <uri> and <bearerToken> up to --limit results, and saves them in " +
-                  "<outputFile>. Pass -1 for all results.").build())
-          .addOption(Option.builder().argName("g").longOpt(ACTIONS.GET_ENTITY_SET)
+          .addOption(Option.builder().argName("g").longOpt(ACTIONS.GET_ENTITIES)
               .desc("executes GET on <uri> using the given <bearerToken> and optional <serviceRoot> when " +
-                  "--useEdmEnabledClient is specified").build())
+                  "--useEdmEnabledClient is specified. Optionally takes a <limit>, which will fetch that number " +
+                      "of results. Pass --limit -1 to fetch all results.").build())
           .addOption(Option.builder().argName("v").longOpt(ACTIONS.VALIDATE_METADATA)
               .desc("validates previously-fetched metadata in the <inputFile> path.").build())
           .addOption(Option.builder().argName("w").longOpt(ACTIONS.SAVE_RAW_GET_REQUEST)
