@@ -165,6 +165,28 @@ the given EDMX `inputFile` name.
 
 ---
 
+## Logging
+
+In the current release of the Commander, the default logging level has been set to `INFO` rather than `ALL` or `DEBUG`. 
+
+For instance, to log output to a file rather than piping the output of what's on the console to a file, the path to your custom settings file can be specified by passing a command line arg. There's more information about log4j.properties file [here](https://logging.apache.org/log4j/2.x/manual/configuration.html).
+
+In this case, you'd want a log4j.properties file (name is arbitrary) similar to the following:
+
+```
+log4j.rootLogger=ALL, Console
+log4j.appender.Console=org.apache.log4j.ConsoleAppender
+log4j.appender.Console.layout=org.apache.log4j.PatternLayout
+log4j.appender.Console.layout.conversionPattern=%m%n
+```
+which you can then pass to the Commander as follows:
+
+```
+ java -Dlog4j.configuration=file:/path/to/your/log4j.properties -jar <... remaining arguments>
+```
+
+It's important to note that `-Dlog4j.configuration=file:/path/to/your/log4j.properties` _must_ contain a path to the file. In the case above, the file was in the same directory as the Java executable, but you'll need to change that if you're using a different directory.
+
 Please contact [josh@reso.org](mailto:josh@reso.org) with any questions, bug reports, or feature requests.
 
 **Coming Soon**: support for authentication options in addition to Bearer tokens. 
