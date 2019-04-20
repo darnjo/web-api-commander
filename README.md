@@ -182,7 +182,7 @@ log4j.appender.Console.layout.conversionPattern=%m%n
 which you can then pass to the Commander as follows:
 
 ```
- java -Dlog4j.configuration=file:/path/to/your/log4j.properties -jar <... remaining arguments>
+ java -Dlog4j.configuration=file:/path/to/your/log4j.properties -jar web-api-commander <... remaining arguments>
 ```
 
 It's important to note that `-Dlog4j.configuration=file:/path/to/your/log4j.properties` _must_ contain a path to the file. In the case above, the file was in the same directory as the Java executable, but you'll need to change that if you're using a different directory.
