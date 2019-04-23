@@ -9,6 +9,9 @@ import org.apache.olingo.commons.api.http.HttpMethod;
 
 import java.net.URI;
 
+/**
+ * Extends DefaultHttpClientFactory with one that can accept tokens passed in to make requests.
+ */
 public class TokenHttpClientFactory extends DefaultHttpClientFactory {
   String token;
 
@@ -26,11 +29,12 @@ public class TokenHttpClientFactory extends DefaultHttpClientFactory {
   @Override
   public DefaultHttpClient create(final HttpMethod method, final URI uri) {
     final DefaultHttpClient client = new DefaultHttpClient();
+
     client.getParams().setParameter(CoreProtocolPNames.USER_AGENT, USER_AGENT);
 
-    // add auth token using the vendor's bearer token
-    client.addRequestInterceptor((request, context) ->
-        request.addHeader("Authorization", "Bearer " + token));
+    // add auth token using the vendor's bearer token passed from the command line.
+    // TODO: handle refresh tokens
+    client.addRequestInterceptor((request, context) -> request.addHeader("Authorization", "Bearer " + token));
 
     return client;
   }

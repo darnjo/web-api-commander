@@ -39,7 +39,7 @@ import java.util.function.Function;
 public class Commander {
   private ODataClient client;
   private String serviceRoot;
-  private boolean useEdmEnabledClient;
+  boolean useEdmEnabledClient;
 
   private static final Logger log = Logger.getLogger(Commander.class);
 
@@ -129,7 +129,7 @@ public class Commander {
     } catch (NullPointerException nex) {
       log.error("ERROR: null pointer exception while trying to validate metadata. Validation failed!");
     } catch (Exception ex) {
-      log.error("ERROR: " + ex.getMessage());
+      log.error("ERROR: general error occurred in validateMetadata\n" + ex.getMessage());
       if (ex.getCause() != null) {
         log.error("ERROR: " + ex.getCause().getMessage());
       }
@@ -152,7 +152,8 @@ public class Commander {
       return validateMetadata(metadata);
 
     } catch (Exception ex) {
-      log.error("ERROR: " + ex.getMessage() + "\n");
+      log.error("Error occurred while validating metadata.\nPath was:" + pathToEdmx);
+      log.error(ex.getMessage());
     }
     return false;
   }
@@ -175,8 +176,8 @@ public class Commander {
         if (url.getPath() != null) uriBuilder.setPath(url.getPath());
         if (url.getQuery() != null) uriBuilder.setQuery(URLEncoder.encode(url.getQuery(), StandardCharsets.UTF_8.toString()));
         return uriBuilder.build();
-
        */
+
     } catch (Exception ex) {
       log.error("ERROR in prepareURI: " + ex.toString());
     }
@@ -191,6 +192,9 @@ public class Commander {
    */
   public void saveRawGetRequest(String requestUri, String outputFilePath) {
     try {
+
+      log.debug("RequestURI: " + requestUri);
+
       FileUtils.copyInputStreamToFile(
           client.getRetrieveRequestFactory().getRawRequest(prepareURI.apply(requestUri)).rawExecute(), new File(outputFilePath));
 
@@ -203,7 +207,7 @@ public class Commander {
   }
 
   /**
-   * Reads entities from a given
+   * Fairly primitive, for now, version of a fetch function.
    * TODO: add a function that can write a page at a time.
    * TODO: add a parallel function which can create n queries at a time and download their results
    *
@@ -222,7 +226,11 @@ public class Commander {
       try {
         URIBuilder uriBuilder = new URIBuilder(prepareURI.apply(requestUri));
         if (skip != null && skip > 0) uriBuilder.addParameter("$skip", skip.toString());
-        return uriBuilder.build();
+
+        URI uri = uriBuilder.build();
+        log.debug("URI created: " + uri.toString());
+
+        return uri;
       } catch (Exception ex) {
         log.error("ERROR: " + ex.toString());
       }
@@ -274,8 +282,7 @@ public class Commander {
     if (validateMetadata(pathToEDMX)) {
       try {
         TransformerFactory factory = TransformerFactory.newInstance();
-        Source xslt = new StreamSource(new File(XSLT_FILENAME));
-        Transformer transformer = factory.newTransformer(xslt);
+        Transformer transformer = factory.newTransformer(new StreamSource(new File(XSLT_FILENAME)));
 
         Source text = new StreamSource(new File(pathToEDMX));
         transformer.transform(text, new StreamResult(new File(pathToEDMX + FILENAME_EXTENSION)));
@@ -329,6 +336,7 @@ public class Commander {
     boolean useEdmEnabledClient;
 
     public Builder() {
+      useEdmEnabledClient = false;
     }
 
     public Builder serviceRoot(String serviceRoot) {
@@ -338,11 +346,6 @@ public class Commander {
 
     public Builder bearerToken(String bearerToken) {
       this.bearerToken = bearerToken;
-      return this;
-    }
-
-    public Builder useEdmEnabledClient() {
-      this.useEdmEnabledClient = true;
       return this;
     }
 
@@ -365,7 +368,12 @@ public class Commander {
    * @return one of ContentType if a match is found, or ContentType.JSON if no other format is available.
    */
   public static ContentType getContentType(String contentType) {
-    String JSON = "JSON", JSON_NO_METADATA = "JSON_NO_METADATA", JSON_FULL_METADATA = "JSON_FULL_METADATA", XML = "XML";
+    final String
+        JSON = "JSON",
+        JSON_NO_METADATA = "JSON_NO_METADATA",
+        JSON_FULL_METADATA = "JSON_FULL_METADATA",
+        XML = "XML";
+
     ContentType defaultType = ContentType.JSON;
     ContentType type;
 

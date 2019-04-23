@@ -20,8 +20,8 @@ import java.util.Arrays;
  * using the Commander class, which contains the actual methods for working with OData.
  * <p>
  * For usage, see README.
+ * For documentation, see /doc*
  * <p>
- * TODO: add better handling for required parameters, currently just checks if they're there and prints help if not
  */
 public class Main {
 
@@ -37,13 +37,12 @@ public class Main {
     String serviceRoot, bearerToken;
 
     try {
-      // parse the command line arguments
+      // parser for command line arguments
       CommandLine cmd = parser.parse(APP_OPTIONS.getOptions(), params);
 
       serviceRoot = cmd.getOptionValue(APP_OPTIONS.SERVICE_ROOT, null);
 
-      // only bearer token support for now
-      // TODO: apache CXF for other forms of auth
+      // only bearer token support for now TODO: apache CXF for other forms of auth
       bearerToken = cmd.getOptionValue(APP_OPTIONS.BEARER_TOKEN, null);
 
       boolean useEdmEnabledClient = cmd.hasOption(APP_OPTIONS.USE_EDM_ENABLED_CLIENT);
