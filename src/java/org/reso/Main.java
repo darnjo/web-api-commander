@@ -7,6 +7,7 @@ import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 
 import java.util.Arrays;
+import java.util.function.Function;
 
 /**
  * Entry point of the RESO Web API Commander, which is a command line OData client that uses the Java Olingo
@@ -73,7 +74,6 @@ public class Main {
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_METADATA)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_METADATA);
 
-        log.info("\nGetting metadata from " + serviceRoot + "...");
         metadata = commander.getMetadata(outputFile);
 
         log.info("\nThe metadata contains the following items:");
@@ -105,16 +105,21 @@ public class Main {
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_ENTITIES)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_ENTITIES);
 
+        //function delegate to handle updating the status
+        final Function<Integer, Void> updateStatus = count -> {
+          System.out.print("|" + count.toString());
+          return null;
+        };
+
         /**
          * Gets a ClientEntitySet from the given uri. If the useEdmEnabledClient option was passed,
          * then serviceRoot is required, and results fetched from uri are validated against the server's
          * published metadata.
-         *
+         *status
          * Results are written to outputFile.
          */
         try {
-
-          ClientEntitySet results = commander.getEntitySet(uri, limit);
+          ClientEntitySet results = commander.getEntitySet(uri, limit, updateStatus);
 
           if (results != null) {
             commander.serializeEntitySet(results, outputFile, contentType);
@@ -301,7 +306,7 @@ public class Main {
 
       Option uriOption = Option.builder()
           .argName("u").longOpt(URI).hasArg()
-          .desc("URI for raw request.")
+          .desc("URI for raw request. Use 'single quotes' to enclose.")
           .build();
 
       Option limit = Option.builder()

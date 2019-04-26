@@ -44,7 +44,7 @@ usage: java -jar web-api-commander
                             <bearerToken> and saves output to
                             <outputFile>.
     --serviceRoot <s>       Service root URL on the host.
-    --uri <u>               URI for raw request.
+    --uri <u>               URI for raw request. Use 'single quotes' to enclose.
     --useEdmEnabledClient   present if an EdmEnabledClient should be used.
     --validateMetadata      validates previously-fetched metadata in the
                             <inputFile> path.
@@ -104,6 +104,9 @@ called as follows:
 java -jar web-api-commander.jar --getEntities --uri <u> --bearerToken <b> --outputFile <o>
 ``` 
 
+Make sure that any `uri` containing spaces or special characters is 
+wrapped in 'single quotes'. 
+
 When using the `--useEdmEnabledClient` option, results will be verified 
 against Server metadata after being downloaded. If this option is chosen, 
 then `--serviceRoot` is required so that the Web API Commander can pull 
@@ -137,6 +140,9 @@ java -jar web-api-commander.jar --saveRawGetRequest --uri <u> --bearerToken <b> 
 
 Results are not checked against Server Metadata and are not written in 
 any specific OData format.
+
+Make sure that any `uri` containing spaces or special characters is 
+wrapped in 'single quotes'. 
 
 Note: this option is currently being rolled into `--getEntities` with 
 `--contentType RAW`. Documentation will be updated once the change has 
@@ -187,8 +193,15 @@ which you can then pass to the Commander as follows:
 
 It's important to note that `-Dlog4j.configuration=file:/path/to/your/log4j.properties` _must_ contain a path to the file. In the case above, the file was in the same directory as the Java executable, but you'll need to change that if you're using a different directory.
 
+---
+
 Please contact [josh@reso.org](mailto:josh@reso.org) with any questions, bug reports, or feature requests.
 
-**Coming Soon**: support for authentication options in addition to Bearer tokens. 
+**Coming Soon**: 
+    * Support for authentication options in addition to Bearer tokens
+    * Parallel fetch
+    * Job Scheduling
+    * Excel export
+ 
 
 

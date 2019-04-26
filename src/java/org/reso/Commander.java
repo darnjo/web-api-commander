@@ -127,11 +127,11 @@ public class Commander {
       return client.metadataValidation().isServiceDocument(metadata)
           && client.metadataValidation().isV4Metadata(metadata);
     } catch (NullPointerException nex) {
-      log.error("ERROR: null pointer exception while trying to validate metadata. Validation failed!");
+      log.error("ERROR: Validation Failed! Null pointer exception while trying to validate metadata.");
     } catch (Exception ex) {
-      log.error("ERROR: general error occurred in validateMetadata\n" + ex.getMessage());
+      log.error("ERROR: Validation Failed! General error occurred when validating metadata.\n" + ex.getMessage());
       if (ex.getCause() != null) {
-        log.error("ERROR: " + ex.getCause().getMessage());
+        log.error("Caused by: " + ex.getCause().getMessage());
       }
     }
     return false;
@@ -163,21 +163,14 @@ public class Commander {
    */
   Function<String, URI> prepareURI = uriString -> {
     try {
-      //quick and dirty solution for now
-      URL url = new URL(uriString.replace(" ", "%20"));
-      return url.toURI();
-
-      /*
-        //This should work ... some servers don't like URLEncoded queries though...
+        URL url = new URL(uriString);
         URIBuilder uriBuilder = new URIBuilder();
         uriBuilder.setScheme(url.getProtocol());
 
         uriBuilder.setHost(url.getHost());
         if (url.getPath() != null) uriBuilder.setPath(url.getPath());
-        if (url.getQuery() != null) uriBuilder.setQuery(URLEncoder.encode(url.getQuery(), StandardCharsets.UTF_8.toString()));
+        if (url.getQuery() != null) uriBuilder.setQuery(url.getQuery());
         return uriBuilder.build();
-       */
-
     } catch (Exception ex) {
       log.error("ERROR in prepareURI: " + ex.toString());
     }
@@ -186,6 +179,7 @@ public class Commander {
 
   /**
    * Executes a get request on URI and saves raw response to outputFilePath.
+   * Intended to be used mostly for testing.
    *
    * @param requestUri     the URI to make the request against
    * @param outputFilePath the outputFilePath to write the response to
@@ -206,6 +200,11 @@ public class Commander {
     }
   }
 
+  public ClientEntitySet getEntitySet(String requestUri, Integer limit) {
+    Function<Integer, Void> integerVoidFunction = num -> null;
+    return getEntitySet(requestUri, limit, integerVoidFunction);
+  }
+
   /**
    * Fairly primitive, for now, version of a fetch function.
    * TODO: add a function that can write a page at a time.
@@ -215,14 +214,14 @@ public class Commander {
    * @param limit      the limit for the number of records to read from the Server. Use -1 to fetch all.
    * @return a ClientEntitySet containing any entities found.
    */
-  public ClientEntitySet getEntitySet(String requestUri, Integer limit) {
+  public ClientEntitySet getEntitySet(String requestUri, Integer limit, Function<Integer, Void> updateStatusFunction) {
 
     List<ClientEntity> entities = new ArrayList<>();
     ODataRetrieveResponse<ClientEntitySet> entitySetResponse = null;
     ClientEntitySet results = new ClientEntitySetImpl();
 
     // function to create URIs from skips and local params
-    Function<Integer, URI> buildUri = skip -> {
+    Function<Integer, URI> buildSkipUri = skip -> {
       try {
         URIBuilder uriBuilder = new URIBuilder(prepareURI.apply(requestUri));
         if (skip != null && skip > 0) uriBuilder.addParameter("$skip", skip.toString());
@@ -238,7 +237,7 @@ public class Commander {
     };
 
     try {
-      URI uri = buildUri.apply(null);
+      URI uri = buildSkipUri.apply(null);
 
       log.info("Fetching results from: " + requestUri);
 
@@ -250,7 +249,9 @@ public class Commander {
 
         //some of the next links don't currently work, so we can't use getNext() reliably.
         //we can, however, use the results of what we've downloaded previously to inform the skip.
-        uri = buildUri.apply(entities.size());
+        uri = buildSkipUri.apply(entities.size());
+
+        updateStatusFunction.apply(entities.size());
 
       } while (entitySetResponse.getStatusCode() == HttpStatus.SC_OK && entitySetResponse.getBody().getNext() != null
           && (limit == -1 || entities.size() < limit));
@@ -261,10 +262,10 @@ public class Commander {
       System.exit(NOT_OK);
     } finally {
       //trim results size to requested limit
-      results.getEntities().addAll(entities.subList(0, limit > 0 ?
-           Math.min(limit, entities.size()) : entities.size()));
+      results.getEntities().addAll(entities.subList(0, limit > 0 ? Math.min(limit, entities.size()) : entities.size()));
+      results.setCount(entitySetResponse.getBody().getCount());
 
-      log.info("Transfer Complete!");
+      log.info("\nTransfer Complete!");
       return results;
     }
   }
