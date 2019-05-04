@@ -15,7 +15,6 @@ import org.apache.olingo.client.api.http.HttpClientException;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
 import org.apache.olingo.commons.api.edm.Edm;
-import org.apache.olingo.commons.api.ex.ODataRuntimeException;
 import org.apache.olingo.commons.api.format.ContentType;
 
 import javax.xml.transform.Source;
@@ -222,26 +221,10 @@ public class Commander {
     ODataRetrieveResponse<ClientEntitySet> entitySetResponse = null;
     ClientEntitySet results = new ClientEntitySetImpl();
 
-    // function to create URIs from skips and local params
-    Function<Integer, URI> buildSkipUri = skip -> {
-      try {
-        URIBuilder uriBuilder = new URIBuilder(prepareURI.apply(requestUri));
-        if (skip != null && skip > 0) uriBuilder.addParameter("$skip", skip.toString());
 
-        URI uri = uriBuilder.build();
-        log.debug("URI created: " + uri.toString());
-
-        return uri;
-      } catch (Exception ex) {
-        log.error("ERROR: " + ex.toString());
-        System.exit(NOT_OK);
-      } finally {
-        return null;
-      }
-    };
 
     try {
-      URI uri = buildSkipUri.apply(null);
+      URI uri = createSkipUri(requestUri, null);
 
       log.info("Fetching results from: " + requestUri);
 
@@ -253,21 +236,15 @@ public class Commander {
 
         //some of the next links don't currently work, so we can't use getNext() reliably.
         //we can, however, use the results of what we've downloaded previously to inform the skip.
-        uri = buildSkipUri.apply(entities.size());
+        uri = createSkipUri(requestUri, entities.size());
 
         updateStatusFunction.apply(entities.size());
 
       } while (entitySetResponse.getStatusCode() == HttpStatus.SC_OK && entitySetResponse.getBody().getNext() != null
           && (limit == -1 || entities.size() < limit));
 
-    } catch (ODataRuntimeException re) {
-      log.error("ERROR in getEntitySet: could not continue. Error: " + re.getCause());
-      System.exit(NOT_OK);
     } catch (HttpClientException hce) {
-      log.error("ERROR in getEntitySet: invalid URI!! " + hce.getMessage());
-      System.exit(NOT_OK);
-    } catch (NullPointerException npe) {
-      log.error("ERROR in getEntitySet: could not continue.");
+      log.error("ERROR: getEntitySet could not continue. Error: invalid URI!!");
       System.exit(NOT_OK);
     } catch (Exception ex) {
       //NOTE: sometimes a bad skip link in the payload can cause exceptions...the Olingo library validates the responses.
@@ -414,5 +391,29 @@ public class Commander {
       }
     }
     return type;
+  }
+
+
+  /**
+   * Creates a skip uri with the given parameters.
+   * @param requestUri the raw URI of the request
+   * @param skip the skip parameter, which can optionally be null.
+   * @return the constructed URI.
+   */
+  private URI createSkipUri(String requestUri, Integer skip) {
+    try {
+      URIBuilder uriBuilder = new URIBuilder(prepareURI.apply(requestUri));
+      if (skip != null && skip > 0) uriBuilder.addParameter("$skip", skip.toString());
+
+      URI uri = uriBuilder.build();
+      log.debug("URI created: " + uri.toString());
+
+      return uri;
+    } catch (Exception ex) {
+      log.error("ERROR: " + ex.toString());
+      System.exit(NOT_OK);
+    } finally {
+      return null;
+    }
   }
 }
