@@ -11,9 +11,11 @@ import org.apache.olingo.client.api.communication.response.ODataRetrieveResponse
 import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
+import org.apache.olingo.client.api.http.HttpClientException;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
 import org.apache.olingo.commons.api.edm.Edm;
+import org.apache.olingo.commons.api.ex.ODataRuntimeException;
 import org.apache.olingo.commons.api.format.ContentType;
 
 import javax.xml.transform.Source;
@@ -232,8 +234,10 @@ public class Commander {
         return uri;
       } catch (Exception ex) {
         log.error("ERROR: " + ex.toString());
+        System.exit(NOT_OK);
+      } finally {
+        return null;
       }
-      return null;
     };
 
     try {
@@ -256,14 +260,30 @@ public class Commander {
       } while (entitySetResponse.getStatusCode() == HttpStatus.SC_OK && entitySetResponse.getBody().getNext() != null
           && (limit == -1 || entities.size() < limit));
 
+    } catch (ODataRuntimeException re) {
+      log.error("ERROR in getEntitySet: could not continue. Error: " + re.getCause());
+      System.exit(NOT_OK);
+    } catch (HttpClientException hce) {
+      log.error("ERROR in getEntitySet: invalid URI!! " + hce.getMessage());
+      System.exit(NOT_OK);
+    } catch (NullPointerException npe) {
+      log.error("ERROR in getEntitySet: could not continue.");
+      System.exit(NOT_OK);
     } catch (Exception ex) {
       //NOTE: sometimes a bad skip link in the payload can cause exceptions...the Olingo library validates the responses.
       log.error("ERROR: getEntitySet could not continue. " + ex.getCause());
       System.exit(NOT_OK);
     } finally {
       //trim results size to requested limit
-      results.getEntities().addAll(entities.subList(0, limit > 0 ? Math.min(limit, entities.size()) : entities.size()));
-      results.setCount(entitySetResponse.getBody().getCount());
+
+      if (results.getEntities() != null) {
+        results.getEntities().addAll(entities.subList(0, limit > 0 ? Math.min(limit, entities.size()) : entities.size()));
+
+        //add some basic checking to the count being set
+        Integer count = entitySetResponse != null && entitySetResponse.getBody() != null ?
+            entitySetResponse.getBody().getCount() : 0;
+        results.setCount(count);
+      }
 
       log.info("\nTransfer Complete!");
       return results;
