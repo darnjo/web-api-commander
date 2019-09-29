@@ -39,7 +39,8 @@ import java.util.function.Function;
 public class Commander {
   private ODataClient client;
   private String serviceRoot;
-  boolean useEdmEnabledClient;
+  private String bearerToken;
+  private boolean useEdmEnabledClient;
 
   private static final Logger log = Logger.getLogger(Commander.class);
 
@@ -60,6 +61,7 @@ public class Commander {
    */
   public Commander(String serviceRoot, String bearerToken, boolean useEdmEnabledClient) {
     this(serviceRoot, useEdmEnabledClient);
+    this.bearerToken = bearerToken;
     client.getConfiguration().setHttpClientFactory(new TokenHttpClientFactory(bearerToken));
   }
 
@@ -81,6 +83,14 @@ public class Commander {
     } else {
       client = ODataClientFactory.getClient();
     }
+  }
+
+  public String getBearerToken() {
+    return this.bearerToken;
+  }
+
+  public void setBearerToken(String bearerToken) {
+    this.bearerToken = bearerToken;
   }
 
   /**
@@ -161,7 +171,7 @@ public class Commander {
   /**
    * Prepares a URI for an OData request
    */
-  Function<String, URI> prepareURI = uriString -> {
+  private Function<String, URI> prepareURI = uriString -> {
     try {
         URL url = new URL(uriString);
         URIBuilder uriBuilder = new URIBuilder();

@@ -3,3 +3,4 @@ target/
 .idea/
 classes/
 *.swagger.json
+*.DS_Store

@@ -5,7 +5,11 @@ import org.apache.log4j.Logger;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
+import org.reso.resoscript.ClientSettings;
+import org.reso.resoscript.Request;
+import org.reso.resoscript.Settings;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.function.Function;
 
@@ -64,14 +68,47 @@ public class Main {
       //pass -1 to get all pages, default is 10
       int limit = Integer.parseInt(cmd.getOptionValue(APP_OPTIONS.LIMIT, "10"));
 
+      //if we're running from a RESOScript, load settings and extract the Bearer Token before we continue
+      Settings settings = null;
+      if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
+        log.info("\nRunning RESOScript " + inputFile + "...");
+
+        log.debug("Loading RESOScript File: " + inputFile);
+        settings = Settings.loadFromRESOScript(new File(inputFile));
+        log.debug("RESOScript loaded successfully!");
+
+        log.debug("Setting Commander Bearer Token...");
+        bearerToken = settings.getClientSettings().get(ClientSettings.BEARER_TOKEN);
+        log.debug("Bearer token loaded... first 4 characters:" + bearerToken.substring(0, 4));
+
+      }
+
       // create a new Web API Commander
       commander = new Commander.Builder()
-          .serviceRoot(serviceRoot)
-          .bearerToken(bearerToken)
-          .useEdmEnabledClient(useEdmEnabledClient)
-          .build();
+              .serviceRoot(serviceRoot)
+              .bearerToken(bearerToken)
+              .useEdmEnabledClient(useEdmEnabledClient)
+              .build();
 
-      if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_METADATA)) {
+
+      if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
+        if (settings == null) {
+          log.error("RESOScript option was specified but Settings could not be loaded.");
+          log.error("Input File: " + inputFile);
+          System.exit(Commander.NOT_OK);
+        } else {
+          log.debug("Running Requests...");
+          for (Request request : settings.getRequests()) {
+            String resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
+            log.info("Running Request: " + request.getName());
+            resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
+
+            log.debug("Resolved URL: " + resolvedUrl);
+            commander.saveRawGetRequest(resolvedUrl, request.getOutputFile());
+            log.info("Request " + request.getName() + " Complete!");
+          }
+        }
+      } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_METADATA)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_METADATA);
 
         metadata = commander.getMetadata(outputFile);
@@ -177,26 +214,26 @@ public class Main {
   private static void prettyPrint(Edm metadata) {
 
     //Note: other treatments may be added to this summary info
-    metadata.getSchemas().stream().forEach(schema -> {
+    metadata.getSchemas().forEach(schema -> {
       log.info("\nNamespace: " + schema.getNamespace());
       log.info("=============================================================");
 
-      schema.getTypeDefinitions().stream().forEach(a ->
+      schema.getTypeDefinitions().forEach(a ->
           log.info("\tType Definition:" + a.getFullQualifiedName().getFullQualifiedNameAsString()));
 
-      schema.getEnumTypes().stream().forEach(a ->
+      schema.getEnumTypes().forEach(a ->
           log.info("\tEnum Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
 
-      schema.getEntityTypes().stream().forEach(a ->
+      schema.getEntityTypes().forEach(a ->
           log.info("\tEntity Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
 
-      schema.getComplexTypes().stream().forEach(a ->
+      schema.getComplexTypes().forEach(a ->
           log.info("\tComplex Entity Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
 
-      schema.getAnnotationGroups().stream().forEach(a ->
+      schema.getAnnotationGroups().forEach(a ->
           log.info("\tAnnotations: " + a.getQualifier() + ", Target Path: " + a.getTargetPath()));
 
-      schema.getTerms().stream().forEach(a ->
+      schema.getTerms().forEach(a ->
           log.info(a.getFullQualifiedName().getFullQualifiedNameAsString()));
     });
   }
@@ -207,24 +244,25 @@ public class Main {
   private static class APP_OPTIONS {
 
     //parameter names
-    public static String SERVICE_ROOT = "serviceRoot";
-    public static String BEARER_TOKEN = "bearerToken";
-    public static String INPUT_FILE = "inputFile";
-    public static String OUTPUT_FILE = "outputFile";
-    public static String URI = "uri";
-    public static String LIMIT = "limit";
-    public static String ENTITY_NAME = "entityName";
-    public static String USE_EDM_ENABLED_CLIENT = "useEdmEnabledClient";
-    public static String CONTENT_TYPE = "contentType";
-    public static String HELP = "help";
+    static String SERVICE_ROOT = "serviceRoot";
+    static String BEARER_TOKEN = "bearerToken";
+    static String INPUT_FILE = "inputFile";
+    static String OUTPUT_FILE = "outputFile";
+    static String URI = "uri";
+    static String LIMIT = "limit";
+    static String ENTITY_NAME = "entityName";
+    static String USE_EDM_ENABLED_CLIENT = "useEdmEnabledClient";
+    static String CONTENT_TYPE = "contentType";
+    static String HELP = "help";
 
-    public static class ACTIONS {
+    static class ACTIONS {
       //actions
-      public static String GET_METADATA = "getMetadata";
-      public static String VALIDATE_METADATA = "validateMetadata";
-      public static String GET_ENTITIES = "getEntities";
-      public static String SAVE_RAW_GET_REQUEST = "saveRawGetRequest";
-      public static String CONVERT_EDMX_TO_OAI = "convertEDMXtoOAI";
+      static String RUN_RESOSCRIPT = "runRESOScript";
+      static String GET_METADATA = "getMetadata";
+      static String VALIDATE_METADATA = "validateMetadata";
+      static String GET_ENTITIES = "getEntities";
+      static String SAVE_RAW_GET_REQUEST = "saveRawGetRequest";
+      static String CONVERT_EDMX_TO_OAI = "convertEDMXtoOAI";
     }
 
     /**
@@ -237,10 +275,12 @@ public class Main {
      *               <p>
      *               If the given action doesn't validate, then an error message will be printed and the application will exit.
      */
-    public static void validateAction(CommandLine cmd, String action) {
+     static void validateAction(CommandLine cmd, String action) {
       String validationResponse = null;
 
-      if (action.matches(ACTIONS.GET_METADATA)) {
+      if (action.matches(ACTIONS.RUN_RESOSCRIPT)) {
+        validationResponse = validateOptions(cmd, INPUT_FILE);
+      } else if (action.matches(ACTIONS.GET_METADATA)) {
         validationResponse = validateOptions(cmd, SERVICE_ROOT, BEARER_TOKEN, OUTPUT_FILE);
       } else if (action.matches(ACTIONS.VALIDATE_METADATA)) {
         validationResponse = validateOptions(cmd, INPUT_FILE);
@@ -265,7 +305,7 @@ public class Main {
      * @param options a list of options to validate
      * @return an error string containing a formatted message when validation fails, otherwise null (valid)
      */
-    private static String validateOptions(CommandLine cmd, String... options) {
+    static String validateOptions(CommandLine cmd, String... options) {
       StringBuilder sb = new StringBuilder();
       Arrays.stream(options).forEach(option -> {
         if (!cmd.hasOption(option)) {
@@ -282,7 +322,7 @@ public class Main {
      *
      * @return the options to be used within the application.
      */
-    public static Options getOptions() {
+    static Options getOptions() {
       // create Options
       Option hostNameOption = Option.builder()
           .argName("s").longOpt(SERVICE_ROOT).hasArg()
@@ -335,18 +375,20 @@ public class Main {
           .build();
 
       OptionGroup actions = new OptionGroup()
+          .addOption(Option.builder().argName("r").longOpt(ACTIONS.RUN_RESOSCRIPT)
+              .desc("Runs commands in RESOScript file given as <inputFile>.").build())
           .addOption(Option.builder().argName("m").longOpt(ACTIONS.GET_METADATA)
-              .desc("fetches metadata from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
+              .desc("Fetches metadata from <serviceRoot> using <bearerToken> and saves results in <outputFile>.").build())
           .addOption(Option.builder().argName("g").longOpt(ACTIONS.GET_ENTITIES)
-              .desc("executes GET on <uri> using the given <bearerToken> and optional <serviceRoot> when " +
+              .desc("Executes GET on <uri> using the given <bearerToken> and optional <serviceRoot> when " +
                   "--useEdmEnabledClient is specified. Optionally takes a <limit>, which will fetch that number " +
                       "of results. Pass --limit -1 to fetch all results.").build())
           .addOption(Option.builder().argName("v").longOpt(ACTIONS.VALIDATE_METADATA)
-              .desc("validates previously-fetched metadata in the <inputFile> path.").build())
+              .desc("Validates previously-fetched metadata in the <inputFile> path.").build())
           .addOption(Option.builder().argName("w").longOpt(ACTIONS.SAVE_RAW_GET_REQUEST)
-              .desc("performs GET from <requestURI> using the given <bearerToken> and saves output to <outputFile>.").build())
+              .desc("Performs GET from <requestURI> using the given <bearerToken> and saves output to <outputFile>.").build())
           .addOption(Option.builder().argName("c").longOpt(ACTIONS.CONVERT_EDMX_TO_OAI)
-              .desc("converts EDMX in <inputFile> to OAI, saving it in <inputFile>.swagger.json").build());
+              .desc("Converts EDMX in <inputFile> to OAI, saving it in <inputFile>.swagger.json").build());
 
       return new Options()
           .addOption(helpOption)
