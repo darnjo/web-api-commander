@@ -16,6 +16,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Dictionary;
 import java.util.function.Function;
 
 /**
@@ -36,6 +37,7 @@ import java.util.function.Function;
 public class Main {
 
   private static final Logger log = Logger.getLogger(Main.class);
+  private static final String DIVIDER = "==============================================================";
 
   public static void main(String[] params) {
 
@@ -76,11 +78,10 @@ public class Main {
       //if we're running from a RESOScript, load settings and extract the Bearer Token before we continue
       Settings settings = null;
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
-        log.info("==========================================================================");
+        log.info(DIVIDER);
         log.info("Web API Commander Starting... Press <ctrl+c> at any time to exit.");
-        log.info("Running RESOScript " + inputFile + "...");
 
-        log.debug("Loading RESOScript File: " + inputFile);
+        log.debug("Loading RESOScript: " + inputFile);
         settings = Settings.loadFromRESOScript(new File(inputFile));
         log.debug("RESOScript loaded successfully!");
 
@@ -105,28 +106,33 @@ public class Main {
           log.error("Input File: " + inputFile);
           System.exit(Commander.NOT_OK);
         } else {
-          log.info("Running " + settings.getRequests().size() + " Request(s)...");
-          log.info("==========================================================================\n\n");
+          log.info("Running " + settings.getRequests().size() + " Request(s)");
+          log.info("RESOScript: " + inputFile);
+          log.info(DIVIDER + "\n\n");
 
           String path = inputFile.replace(".resoscript", "") + "-" + getTimestamp.apply(new Date());
+          String resolvedUrl = null;
 
+          int i = 0;
           for (Request request : settings.getRequests()) {
             try {
-                String resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
-                log.info("Request: [" + request.getName() + "]");
+                log.info("[Test #" + ++i + "]");
+                log.info("Test Name: [" + request.getName().replace(".json", "") + "]");
+
                 resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
 
                 log.debug("Resolved URL: " + resolvedUrl);
                 commander.saveRawGetRequest(resolvedUrl, path + "/" + request.getOutputFile());
                 log.info("Request " + request.getName() + " complete!\n\n");
+                //log.info(DIVIDER + "\n\n");
             } catch (Exception ex) {
               log.error("ERROR: exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
             }
           }
 
-          log.info("==========================================================================");
+          log.info(DIVIDER);
           log.info("RESOScript Complete!");
-          log.info("==========================================================================\n\n");
+          log.info(DIVIDER + "\n\n");
         }
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_METADATA)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_METADATA);
@@ -236,7 +242,7 @@ public class Main {
     //Note: other treatments may be added to this summary info
     metadata.getSchemas().forEach(schema -> {
       log.info("\nNamespace: " + schema.getNamespace());
-      log.info("=============================================================");
+      log.info(DIVIDER);
 
       schema.getTypeDefinitions().forEach(a ->
           log.info("\tType Definition:" + a.getFullQualifiedName().getFullQualifiedNameAsString()));
@@ -426,7 +432,7 @@ public class Main {
   }
 
   private static Function<Date, String> getTimestamp = (date) -> {
-    DateFormat df = new SimpleDateFormat("yyyyMMddhhmmssS");
+    DateFormat df = new SimpleDateFormat("yyyyMMddHHMMssS");
     return df.format(date);
   };
 }
