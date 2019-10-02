@@ -4,3 +4,5 @@ target/
 classes/
 *.swagger.json
 *.DS_Store
+metadata-full/
+res/

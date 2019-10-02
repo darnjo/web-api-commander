@@ -1,6 +1,7 @@
 package org.reso;
 
 import org.apache.commons.cli.*;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.commons.api.edm.Edm;
@@ -10,7 +11,11 @@ import org.reso.resoscript.Request;
 import org.reso.resoscript.Settings;
 
 import java.io.File;
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.function.Function;
 
 /**
@@ -54,7 +59,7 @@ public class Main {
 
       // using the edmEnabledClient requires the serviceRoot for schema validation, which is performed
       // against the payload each time the request is made when enabled.
-      if (useEdmEnabledClient && !cmd.hasOption(APP_OPTIONS.SERVICE_ROOT)) {
+      if (useEdmEnabledClient && !(cmd.hasOption(APP_OPTIONS.SERVICE_ROOT) || cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT))) {
         printErrorMsgAndExit("\nERROR: --" + APP_OPTIONS.SERVICE_ROOT
             + " is required with the --" + APP_OPTIONS.USE_EDM_ENABLED_CLIENT + " option!");
       }
@@ -71,7 +76,9 @@ public class Main {
       //if we're running from a RESOScript, load settings and extract the Bearer Token before we continue
       Settings settings = null;
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
-        log.info("\nRunning RESOScript " + inputFile + "...");
+        log.info("==========================================================================");
+        log.info("Web API Commander Starting... Press <ctrl+c> at any time to exit.");
+        log.info("Running RESOScript " + inputFile + "...");
 
         log.debug("Loading RESOScript File: " + inputFile);
         settings = Settings.loadFromRESOScript(new File(inputFile));
@@ -81,6 +88,8 @@ public class Main {
         bearerToken = settings.getClientSettings().get(ClientSettings.BEARER_TOKEN);
         log.debug("Bearer token loaded... first 4 characters:" + bearerToken.substring(0, 4));
 
+        serviceRoot = settings.getClientSettings().get(ClientSettings.WEB_API_URI);
+        log.debug("Service root is: " + serviceRoot);
       }
 
       // create a new Web API Commander
@@ -90,23 +99,34 @@ public class Main {
               .useEdmEnabledClient(useEdmEnabledClient)
               .build();
 
-
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
         if (settings == null) {
           log.error("RESOScript option was specified but Settings could not be loaded.");
           log.error("Input File: " + inputFile);
           System.exit(Commander.NOT_OK);
         } else {
-          log.debug("Running Requests...");
-          for (Request request : settings.getRequests()) {
-            String resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
-            log.info("Running Request: " + request.getName());
-            resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
+          log.info("Running " + settings.getRequests().size() + " Request(s)...");
+          log.info("==========================================================================\n\n");
 
-            log.debug("Resolved URL: " + resolvedUrl);
-            commander.saveRawGetRequest(resolvedUrl, request.getOutputFile());
-            log.info("Request " + request.getName() + " Complete!");
+          String path = inputFile.replace(".resoscript", "") + "-" + getTimestamp.apply(new Date());
+
+          for (Request request : settings.getRequests()) {
+            try {
+                String resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
+                log.info("Request: [" + request.getName() + "]");
+                resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
+
+                log.debug("Resolved URL: " + resolvedUrl);
+                commander.saveRawGetRequest(resolvedUrl, path + "/" + request.getOutputFile());
+                log.info("Request " + request.getName() + " complete!\n\n");
+            } catch (Exception ex) {
+              log.error("ERROR: exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
+            }
           }
+
+          log.info("==========================================================================");
+          log.info("RESOScript Complete!");
+          log.info("==========================================================================\n\n");
         }
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_METADATA)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_METADATA);
@@ -129,7 +149,7 @@ public class Main {
 
         /**
          * Validates the metadata in inputFile in three ways:
-         *    - deserializes it into a native Edm object, which will fail if given metadata isn't valid
+         *    - de-serializes it into a native Edm object, which will fail if given metadata isn't valid
          *    - verifies whether the given EDMX file is a valid service document
          *    - verifies whether the given EDMX file is in version 4 format
          */
@@ -404,4 +424,9 @@ public class Main {
           .addOptionGroup(actions);
     }
   }
+
+  private static Function<Date, String> getTimestamp = (date) -> {
+    DateFormat df = new SimpleDateFormat("yyyyMMddhhmmssS");
+    return df.format(date);
+  };
 }

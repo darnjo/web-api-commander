@@ -21,10 +21,7 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileWriter;
+import java.io.*;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -88,7 +85,6 @@ public class Commander {
   public String getBearerToken() {
     return this.bearerToken;
   }
-
   public void setBearerToken(String bearerToken) {
     this.bearerToken = bearerToken;
   }
@@ -195,18 +191,25 @@ public class Commander {
    * @param outputFilePath the outputFilePath to write the response to
    */
   public void saveRawGetRequest(String requestUri, String outputFilePath) {
+    final String ERROR_EXTENSION = ".ERROR";
+    File outputFile = null;
     try {
-
       log.debug("RequestURI: " + requestUri);
-
+      outputFile = new File(outputFilePath);
       FileUtils.copyInputStreamToFile(
-          client.getRetrieveRequestFactory().getRawRequest(prepareURI.apply(requestUri)).rawExecute(), new File(outputFilePath));
-
-      log.info("Request complete... Response written to file: " + outputFilePath);
-
+          client.getRetrieveRequestFactory().getRawRequest(prepareURI.apply(requestUri)).rawExecute(), outputFile);
     } catch (Exception ex) {
-      log.error("ERROR: exception occurred in writeRawResponse. " + ex.getMessage());
-      System.exit(NOT_OK);
+      outputFile = new File(outputFilePath + ERROR_EXTENSION);
+      String errMsg = "Request URI: " + requestUri + "\n\nERROR:" + ex.toString();
+      try {
+        FileUtils.writeByteArrayToFile(outputFile, errMsg.getBytes());
+      } catch (IOException ioEx) {
+        log.error("Could not write to error log file!");
+      } finally {
+        log.error("Exception occurred in saveRawGetRequest. " + ex.getMessage());
+      }
+    } finally {
+      log.info("Output File: " + outputFile.getPath());
     }
   }
 
