@@ -1,7 +1,6 @@
 package org.reso;
 
 import org.apache.commons.cli.*;
-import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.commons.api.edm.Edm;
@@ -11,12 +10,10 @@ import org.reso.resoscript.Request;
 import org.reso.resoscript.Settings;
 
 import java.io.File;
-import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.Dictionary;
 import java.util.function.Function;
 
 /**
@@ -36,7 +33,7 @@ import java.util.function.Function;
  */
 public class Main {
 
-  private static final Logger log = Logger.getLogger(Main.class);
+  private static final Logger LOG = Logger.getLogger(Main.class);
   private static final String DIVIDER = "==============================================================";
 
   public static void main(String[] params) {
@@ -78,19 +75,19 @@ public class Main {
       //if we're running from a RESOScript, load settings and extract the Bearer Token before we continue
       Settings settings = null;
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
-        log.info(DIVIDER);
-        log.info("Web API Commander Starting... Press <ctrl+c> at any time to exit.");
+        LOG.info(DIVIDER);
+        LOG.info("Web API Commander Starting... Press <ctrl+c> at any time to exit.");
 
-        log.debug("Loading RESOScript: " + inputFile);
+        LOG.debug("Loading RESOScript: " + inputFile);
         settings = Settings.loadFromRESOScript(new File(inputFile));
-        log.debug("RESOScript loaded successfully!");
+        LOG.debug("RESOScript loaded successfully!");
 
-        log.debug("Setting Commander Bearer Token...");
+        LOG.debug("Setting Commander Bearer Token...");
         bearerToken = settings.getClientSettings().get(ClientSettings.BEARER_TOKEN);
-        log.debug("Bearer token loaded... first 4 characters:" + bearerToken.substring(0, 4));
+        LOG.debug("Bearer token loaded... first 4 characters:" + bearerToken.substring(0, 4));
 
         serviceRoot = settings.getClientSettings().get(ClientSettings.WEB_API_URI);
-        log.debug("Service root is: " + serviceRoot);
+        LOG.debug("Service root is: " + serviceRoot);
       }
 
       // create a new Web API Commander
@@ -102,13 +99,13 @@ public class Main {
 
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
         if (settings == null) {
-          log.error("RESOScript option was specified but Settings could not be loaded.");
-          log.error("Input File: " + inputFile);
+          LOG.error("RESOScript option was specified but Settings could not be loaded.");
+          LOG.error("Input File: " + inputFile);
           System.exit(Commander.NOT_OK);
         } else {
-          log.info("Running " + settings.getRequests().size() + " Request(s)");
-          log.info("RESOScript: " + inputFile);
-          log.info(DIVIDER + "\n\n");
+          LOG.info("Running " + settings.getRequests().size() + " Request(s)");
+          LOG.info("RESOScript: " + inputFile);
+          LOG.info(DIVIDER + "\n\n");
 
           String path = inputFile.replace(".resoscript", "") + "-" + getTimestamp.apply(new Date());
           String resolvedUrl = null;
@@ -116,37 +113,37 @@ public class Main {
           int i = 0;
           for (Request request : settings.getRequests()) {
             try {
-                log.info("[Test #" + ++i + "]");
-                log.info("Test Name: [" + request.getName().replace(".json", "") + "]");
+                LOG.info("[Test #" + ++i + "]");
+                LOG.info("Test Name: [" + request.getName().replace(".json", "") + "]");
 
                 resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
 
-                log.debug("Resolved URL: " + resolvedUrl);
+                LOG.debug("Resolved URL: " + resolvedUrl);
                 commander.saveRawGetRequest(resolvedUrl, path + "/" + request.getOutputFile());
-                log.info("Request " + request.getName() + " complete!\n\n");
+                LOG.info("Request " + request.getName() + " complete!\n\n");
                 //log.info(DIVIDER + "\n\n");
             } catch (Exception ex) {
-              log.error("ERROR: exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
+              LOG.error("ERROR: exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
             }
           }
 
-          log.info(DIVIDER);
-          log.info("RESOScript Complete!");
-          log.info(DIVIDER + "\n\n");
+          LOG.info(DIVIDER);
+          LOG.info("RESOScript Complete!");
+          LOG.info(DIVIDER + "\n\n");
         }
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_METADATA)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_METADATA);
 
-        metadata = commander.getMetadata(outputFile);
+        metadata = commander.getMetadata();
 
-        log.info("\nThe metadata contains the following items:");
+        LOG.info("\nThe metadata contains the following items:");
         prettyPrint(metadata);
 
-        log.info("\nChecking Metadata for validity...");
+        LOG.info("\nChecking Metadata for validity...");
         if (commander.validateMetadata(outputFile)) {
-          log.info("==> Valid Metadata!");
+          LOG.info("==> Valid Metadata!");
         } else {
-          log.error("==> Invalid Metadata!");
+          LOG.error("==> Invalid Metadata!");
           System.exit(Commander.NOT_OK);
         }
 
@@ -160,9 +157,9 @@ public class Main {
          *    - verifies whether the given EDMX file is in version 4 format
          */
         if (commander.validateMetadata(inputFile)) {
-          log.info("Valid Metadata!");
+          LOG.info("Valid Metadata!");
         } else {
-          log.error("ERROR: Invalid Metadata!\n");
+          LOG.error("ERROR: Invalid Metadata!\n");
           System.exit(Commander.NOT_OK);
         }
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_ENTITIES)) {
@@ -189,7 +186,7 @@ public class Main {
           }
         } catch (Exception ex) {
           System.exit(Commander.NOT_OK);
-          log.error(ex.toString());
+          LOG.error(ex.toString());
         }
 
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.SAVE_RAW_GET_REQUEST)) {
@@ -201,13 +198,13 @@ public class Main {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.CONVERT_EDMX_TO_OAI);
 
         //converts metadata in input source file to output file
-        commander.convertMetadata(inputFile);
+        commander.convertEDMXToSwagger(inputFile);
 
       } else {
         printHelp(APP_OPTIONS.getOptions());
       }
     } catch (ParseException exp) {
-      log.error("\nERROR: Parse Exception, Commander cannot continue! " + exp.getMessage());
+      LOG.error("\nERROR: Parse Exception, Commander cannot continue! " + exp.getMessage());
       System.exit(Commander.NOT_OK);
     }
   }
@@ -218,7 +215,7 @@ public class Main {
    * @param msg the message to print
    */
   private static void printErrorMsgAndExit(String msg) {
-    log.error("\n\n" + msg + "\n");
+    LOG.error("\n\n" + msg + "\n");
     printHelp(APP_OPTIONS.getOptions());
     System.exit(Commander.NOT_OK);
   }
@@ -241,26 +238,26 @@ public class Main {
 
     //Note: other treatments may be added to this summary info
     metadata.getSchemas().forEach(schema -> {
-      log.info("\nNamespace: " + schema.getNamespace());
-      log.info(DIVIDER);
+      LOG.info("\nNamespace: " + schema.getNamespace());
+      LOG.info(DIVIDER);
 
       schema.getTypeDefinitions().forEach(a ->
-          log.info("\tType Definition:" + a.getFullQualifiedName().getFullQualifiedNameAsString()));
+          LOG.info("\tType Definition:" + a.getFullQualifiedName().getFullQualifiedNameAsString()));
 
       schema.getEnumTypes().forEach(a ->
-          log.info("\tEnum Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
+          LOG.info("\tEnum Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
 
       schema.getEntityTypes().forEach(a ->
-          log.info("\tEntity Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
+          LOG.info("\tEntity Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
 
       schema.getComplexTypes().forEach(a ->
-          log.info("\tComplex Entity Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
+          LOG.info("\tComplex Entity Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
 
       schema.getAnnotationGroups().forEach(a ->
-          log.info("\tAnnotations: " + a.getQualifier() + ", Target Path: " + a.getTargetPath()));
+          LOG.info("\tAnnotations: " + a.getQualifier() + ", Target Path: " + a.getTargetPath()));
 
       schema.getTerms().forEach(a ->
-          log.info(a.getFullQualifiedName().getFullQualifiedNameAsString()));
+          LOG.info(a.getFullQualifiedName().getFullQualifiedNameAsString()));
     });
   }
 

@@ -5,14 +5,19 @@ import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.log4j.Logger;
+import org.apache.olingo.client.api.EdmEnabledODataClient;
 import org.apache.olingo.client.api.ODataClient;
+import org.apache.olingo.client.api.communication.ODataClientErrorException;
 import org.apache.olingo.client.api.communication.request.retrieve.XMLMetadataRequest;
 import org.apache.olingo.client.api.communication.response.ODataRetrieveResponse;
 import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
+import org.apache.olingo.client.api.edm.xml.Edmx;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
+import org.apache.olingo.client.api.serialization.ODataReader;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
+import org.apache.olingo.client.core.serialization.ODataReaderImpl;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 
@@ -39,7 +44,7 @@ public class Commander {
   private String bearerToken;
   private boolean useEdmEnabledClient;
 
-  private static final Logger log = Logger.getLogger(Commander.class);
+  private static final Logger LOG = Logger.getLogger(Commander.class);
 
   final static int NOT_OK = 1;
 
@@ -74,7 +79,7 @@ public class Commander {
     this.useEdmEnabledClient = useEdmEnabledClient;
 
     this.serviceRoot = serviceRoot;
-    log.debug("\nUsing EdmEnabledClient: " + useEdmEnabledClient);
+    LOG.debug("\nUsing EdmEnabledClient: " + useEdmEnabledClient);
     if (useEdmEnabledClient) {
       client = ODataClientFactory.getEdmEnabledClient(serviceRoot);
     } else {
@@ -90,31 +95,54 @@ public class Commander {
   }
 
   /**
-   * Gets server metadata in EDMX format.
+   * Gets server metadata in Edm format.
    * <p>
-   * TODO: add optional validation upon fetch
-   *
-   * @return Edm representation of the server metadata.
+   * @return XMLMetadata representation of the server metadata.
    */
-  public Edm getMetadata(String outputFileName) {
-    XMLMetadataRequest request = client.getRetrieveRequestFactory().getXMLMetadataRequest(serviceRoot);
-
+  public Edm getMetadata() {
+    Edm metadata = null;
     try {
-      log.info("Fetching Metadata from " + serviceRoot + "...");
-      byte[] buffer = IOUtils.toByteArray(request.rawExecute());
-      log.info("Transfer complete! Bytes received: " + buffer.length);
-
-      // copy response to given output file
-      FileUtils.writeByteArrayToFile(new File(outputFileName), buffer);
-      log.info("Wrote metadata to: " + outputFileName);
-
-      // read metadata from binary to ensure it deserializes properly and return
-      return client.getReader().readMetadata(new ByteArrayInputStream(buffer));
-    } catch (Exception ex) {
-      log.error(ex.toString());
-      System.exit(NOT_OK);
+      LOG.info("Fetching Metadata from " + serviceRoot + "...");
+      metadata = client.getRetrieveRequestFactory().getMetadataRequest(serviceRoot).execute().getBody();
+      LOG.info("Transfer complete! Bytes received: " + metadata.toString().getBytes().length);
+    } catch (ODataClientErrorException cex) {
+      LOG.error(cex.getStackTrace());
     }
-    return null;
+    return metadata;
+  }
+
+  public void saveMetadata(Edm metadata, String outputFileName) {
+    try {
+      FileWriter writer = new FileWriter(outputFileName);
+      client.getSerializer(ContentType.APPLICATION_ATOM_XML).write(writer, metadata);
+    } catch (Exception ex) {
+      LOG.error(ex.getStackTrace());
+    }
+  }
+
+  /**
+   * Converts Edm to XMLMetadata
+   * @param edm
+   * @return the XMLMetadata representation of the given Edm
+   */
+  private XMLMetadata convertEdmToXMLMetadata(Edm edm) {
+    XMLMetadata xmlMetadata = null;
+    try {
+      ByteArrayInputStream inputStream = new ByteArrayInputStream(edm.toString().getBytes());
+      xmlMetadata = client.getDeserializer(ContentType.APPLICATION_ATOM_XML).toMetadata(inputStream);
+    } catch (Exception ex) {
+      LOG.error(ex.getStackTrace());
+    }
+    return xmlMetadata;
+  }
+
+  public boolean validateMetadata(Edm metadata) {
+    try {
+      return validateMetadata(convertEdmToXMLMetadata(metadata));
+    } catch (Exception ex) {
+      LOG.error(ex.getStackTrace());
+    }
+    return false;
   }
 
   /**
@@ -133,11 +161,11 @@ public class Commander {
       return client.metadataValidation().isServiceDocument(metadata)
           && client.metadataValidation().isV4Metadata(metadata);
     } catch (NullPointerException nex) {
-      log.error("ERROR: Validation Failed! Null pointer exception while trying to validate metadata.");
+      LOG.error("ERROR: Validation Failed! Null pointer exception while trying to validate metadata.");
     } catch (Exception ex) {
-      log.error("ERROR: Validation Failed! General error occurred when validating metadata.\n" + ex.getMessage());
+      LOG.error("ERROR: Validation Failed! General error occurred when validating metadata.\n" + ex.getMessage());
       if (ex.getCause() != null) {
-        log.error("Caused by: " + ex.getCause().getMessage());
+        LOG.error("Caused by: " + ex.getCause().getMessage());
       }
     }
     return false;
@@ -150,18 +178,19 @@ public class Commander {
    * @return true if the metadata is valid and false otherwise.
    */
   public boolean validateMetadata(String pathToEdmx) {
+    boolean isValid = false;
     try {
       // deserialize metadata from given file
       XMLMetadata metadata =
           client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(new FileInputStream(pathToEdmx));
 
-      return validateMetadata(metadata);
+      isValid = validateMetadata(metadata);
 
     } catch (Exception ex) {
-      log.error("Error occurred while validating metadata.\nPath was:" + pathToEdmx);
-      log.error(ex.getMessage());
+      LOG.error("Error occurred while validating metadata.\nPath was:" + pathToEdmx);
+      LOG.error(ex.getMessage());
     }
-    return false;
+    return isValid;
   }
 
   /**
@@ -178,7 +207,7 @@ public class Commander {
         if (url.getQuery() != null) uriBuilder.setQuery(url.getQuery());
         return uriBuilder.build();
     } catch (Exception ex) {
-      log.error("ERROR in prepareURI: " + ex.toString());
+      LOG.error("ERROR in prepareURI: " + ex.toString());
     }
     return null;
   };
@@ -194,7 +223,7 @@ public class Commander {
     final String ERROR_EXTENSION = ".ERROR";
     File outputFile = null;
     try {
-      log.debug("RequestURI: " + requestUri);
+      LOG.debug("RequestURI: " + requestUri);
       outputFile = new File(outputFilePath);
       FileUtils.copyInputStreamToFile(
           client.getRetrieveRequestFactory().getRawRequest(prepareURI.apply(requestUri)).rawExecute(), outputFile);
@@ -204,12 +233,12 @@ public class Commander {
       try {
         FileUtils.writeByteArrayToFile(outputFile, errMsg.getBytes());
       } catch (IOException ioEx) {
-        log.error("Could not write to error log file!");
+        LOG.error("Could not write to error log file!");
       } finally {
-        log.error("Exception occurred in saveRawGetRequest. " + ex.getMessage());
+        LOG.error("Exception occurred in saveRawGetRequest. " + ex.getMessage());
       }
     } finally {
-      log.info("Output File: " + outputFile.getPath());
+      LOG.info("Output File: " + outputFile.getPath());
     }
   }
 
@@ -240,11 +269,11 @@ public class Commander {
         if (skip != null && skip > 0) uriBuilder.addParameter("$skip", skip.toString());
 
         URI uri = uriBuilder.build();
-        log.debug("URI created: " + uri.toString());
+        LOG.debug("URI created: " + uri.toString());
 
         return uri;
       } catch (Exception ex) {
-        log.error("ERROR: " + ex.toString());
+        LOG.error("ERROR: " + ex.toString());
       }
       return null;
     };
@@ -252,13 +281,13 @@ public class Commander {
     try {
       URI uri = buildSkipUri.apply(null);
 
-      log.info("Fetching results from: " + requestUri);
+      LOG.info("Fetching results from: " + requestUri);
 
       do {
         entitySetResponse = client.getRetrieveRequestFactory().getEntitySetRequest(uri).execute();
         entities.addAll(entitySetResponse.getBody().getEntities());
 
-        log.debug(limit > 0 ? Math.min(entities.size(), limit) : entities.size());
+        LOG.debug(limit > 0 ? Math.min(entities.size(), limit) : entities.size());
 
         //some of the next links don't currently work, so we can't use getNext() reliably.
         //we can, however, use the results of what we've downloaded previously to inform the skip.
@@ -271,14 +300,14 @@ public class Commander {
 
     } catch (Exception ex) {
       //NOTE: sometimes a bad skip link in the payload can cause exceptions...the Olingo library validates the responses.
-      log.error("ERROR: getEntitySet could not continue. " + ex.getCause());
+      LOG.error("ERROR: getEntitySet could not continue. " + ex.getCause());
       System.exit(NOT_OK);
     } finally {
       //trim results size to requested limit
       results.getEntities().addAll(entities.subList(0, limit > 0 ? Math.min(limit, entities.size()) : entities.size()));
       results.setCount(entitySetResponse.getBody().getCount());
 
-      log.info("\nTransfer Complete!");
+      LOG.info("\nTransfer Complete!");
       return results;
     }
   }
@@ -289,7 +318,7 @@ public class Commander {
    *
    * @param pathToEDMX the metadata file to convert.
    */
-  public void convertMetadata(String pathToEDMX) {
+  public void convertEDMXToSwagger(String pathToEDMX) {
     final String FILENAME_EXTENSION = ".swagger.json";
     final String XSLT_FILENAME = "./V4-CSDL-to-OpenAPI.xslt";
 
@@ -302,11 +331,11 @@ public class Commander {
         transformer.transform(text, new StreamResult(new File(pathToEDMX + FILENAME_EXTENSION)));
 
       } catch (Exception ex) {
-        log.error("ERROR: convertMetadata failed. " + ex.toString());
+        LOG.error("ERROR: convertMetadata failed. " + ex.toString());
         System.exit(NOT_OK);
       }
     } else {
-      log.error("ERROR: invalid metadata! Please ensure metadata is valid using validateMetadata() before proceeding.");
+      LOG.error("ERROR: invalid metadata! Please ensure metadata is valid using validateMetadata() before proceeding.");
     }
   }
 
@@ -321,7 +350,7 @@ public class Commander {
   public void serializeEntitySet(ClientEntitySet entitySet, String outputFilePath, ContentType contentType) {
 
     try {
-      log.info("Saving " + entitySet.getEntities().size() + " item(s) to " + outputFilePath);
+      LOG.info("Saving " + entitySet.getEntities().size() + " item(s) to " + outputFilePath);
       client.getSerializer(contentType).write(new FileWriter(outputFilePath), client.getBinder().getEntitySet(entitySet));
     } catch (Exception ex) {
       System.out.println(ex.getMessage());
