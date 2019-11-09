@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<OutputScript>
+  <ClientSettings>
+    <!-- URLS -->
+    <WebAPIURI><!-- Your OData Service Root --></WebAPIURI>
+    
+    <!-- Credentials -->
+    <AuthenticationType>Authorization Code</AuthenticationType>
+    <BearerToken><!-- Your BearerToken goes here --></BearerToken>
+    <ClientScope><!-- Your Client Scopes go here --></ClientScope>
+    <Version>Web API/1.0</Version>
+    <Preauthenticate>FALSE</Preauthenticate>
+
+  </ClientSettings>
+  <Parameters>
+    <Parameter Name="EndpointMetadata" Value="/$metadata" />
+    <Parameter Name="EndpointResource" Value="Property" />
+
+    <!-- HTTP Code Testing -->
+    <Parameter Name="200_OK" Value="/Property" />
+
+    <!-- 400 Bad Request - Requires Full URL & Separate Login Credentials -->
+    <Parameter Name="400BadRequest" Value="/Property?$filter=BadField eq 'SoBad'" />
+
+    <!-- 403 Forbidden -->
+    <Parameter Name="403Forbidden" Value="/Teams" />
+
+    <!-- 404 Not Found -->
+    <Parameter Name="404NotFound" Value="/ResourceNotFound" />
+
+    <!-- 501 Not Implemented - "Any successful 200 return can be edited; Edit to ""POST"" in Fiddler; Add ""Content-Length: Chunked"" before Bearer Token" -->
+    <Parameter Name="501NotImplemented" Value="/Property?$search=red OR blue" />
+
+    <!-- MISC PARAMETERS for  -->
+    <Parameter Name="SelectList" Value="ListingKey,BedroomsTotal,PropertyType,StreetName,ModificationTimestamp,OriginatingSystemName,Appliances,ListingContractDate,AssociationFeeFrequency,Latitude,Longitude,AboveGradeFinishedArea,City" />
+
+    <!-- Using a different UniqueID Set -->
+    <!-- Using the UniqueID from the Metadata -->
+    <Parameter Name="UniqueID" Value="ListingKey" />
+    <Parameter Name="UniqueIDValue" Value="<Your ListingKey Here>" />
+
+    <!-- For Top, Skip, and Sort Testing -->
+    <Parameter Name="TopCount" Value="5" />
+    <Parameter Name="SortCount" Value="20" />
+
+    <!-- Numeric Field for eq, ne, gt, ge, lt, le testing -->
+    <!-- Type="Edm.Int16" or Type="Edm.Int32" or Type="Edm.Int64" for non-lookup fields -->
+    <Parameter Name="FilterNumericField" Value="BedroomsTotal" />
+    <Parameter Name="FilterNumericValueLow" Value="9" />
+    <Parameter Name="FilterNumericValueHigh" Value="15" />
+    <Parameter Name="FilterNumericNotFound" Value="-1" />
+
+    <!-- Numeric Field for "not" testing -->
+    <Parameter Name="FilterNotField" Value="BedroomsTotal" />
+    <Parameter Name="FilterNotValue" Value="-1" />
+
+    <!-- Enumerated Field for "has" testing -->
+    <Parameter Name="FilterHasField" Value="AssociationFeeFrequency" />
+    <Parameter Name="FilterHasValue" Value="<YOUR Enums.FeeFrequency'Quarterly' VALUE>" />
+
+    <!-- Enumerated Field for SingleValue/Multi-value testing -->
+    <Parameter Name="SingleValueLookupField" Value="AssociationFeeFrequency" />
+    <Parameter Name="SingleValueLookupValue" Value="<YOUR SERVER's Enums.FeeFrequency'Quarterly' VALUE>" />
+    <Parameter Name="MultipleValueLookupField" Value="Appliances" />
+    <Parameter Name="MultipleValueLookupValue1" Value="<YOUR SERVER's Enums.Appliances'Dishwasher' VALUE>" />
+    <Parameter Name="MultipleValueLookupValue2" Value="<YOUR SERVER's Enums.Appliances'Refrigerator' VALUE>" />
+
+    <!-- For Expand Testing -->
+    <Parameter Name="ExpandField" Value="Media" />
+
+    <!-- For Geo-spatial Testing -->
+    <Parameter Name="GeospatialLatitudeField" Value="Latitude" />
+    <Parameter Name="GeospatialLongitudeField" Value="Longitude" />
+    <Parameter Name="GeospatialField" Value="X_Location" />
+    <Parameter Name="GeospatialValue" Value="<YOUR SERVER's Test Geo-spatial VALUE IN 'Longitude Latitude' FORMAT>" /> <!-- "Longitude Latitude" -->   
+    <Parameter Name="GeospatialDistanceValue" Value="10" />
+
+    <!--String Fields for testing -->
+    <!-- Type="Edm.String" -->
+    <Parameter Name="ContainsField" Value="StreetName" />
+    <Parameter Name="ContainsValue" Value="M" />
+    <Parameter Name="EndsWithField" Value="StreetName" />
+    <Parameter Name="EndsWithValue" Value="t" />
+    <Parameter Name="StartsWithField" Value="StreetName" />
+    <Parameter Name="StartsWithValue" Value="M" />
+    <Parameter Name="ToLowerField" Value="StreetName" />
+    <Parameter Name="ToLowerValue" Value="main" />
+    <Parameter Name="ToUpperField" Value="StreetName" />
+    <Parameter Name="ToUpperValue" Value="MAIN" />
+
+    <!-- Date Fields for testing -->
+    <Parameter Name="DateField" Value="ListingContractDate" />
+    <Parameter Name="DateTimeValue" Value="<YOUR SAMPLE DateTimeValue GOES HERE>" />
+    <Parameter Name="DateValue" Value="<YOUR DateValue FROM ABOVE DateTimeValue GOES HERE>" />
+    <Parameter Name="YearValue" Value="<YOUR YearValue FROM ABOVE DateTimeValue GOES HERE>" />
+    <Parameter Name="MonthValue" Value="<YOUR MonthValue FROM ABOVE DateTimeValue GOES HERE" />
+    <Parameter Name="DayValue" Value="<YOUR DayValue FROM ABOVE DateTimeValue GOES HERE" />
+    <Parameter Name="TimestampField" Value="ModificationTimestamp" />
+    <Parameter Name="TimeValue" Value="<YOUR SAMPLE TimeValue FROM ABOVE TimestampField GOES HERE>" />
+    <Parameter Name="HourValue" Value="<YOUR SAMPLE HourValue FROM ABOVE TimestampField GOES HERE>" />
+    <Parameter Name="MinuteValue" Value="<YOUR SAMPLE MinuteValue FROM ABOVE TimestampField GOES HERE>" />
+    <Parameter Name="SecondValue" Value="<YOUR SAMPLE SecondValue FROM ABOVE TimestampField GOES HERE>" />
+    <Parameter Name="FractionalValue" Value="<YOUR SAMPLE FractionalValue FROM ABOVE TimestampField GOES HERE>" />
+
+    <!-- New Fields for WS103 Testing -->
+    <Parameter Name="ValueField" Value="AboveGradeFinishedArea" />
+    <Parameter Name="CastField" Value="AboveGradeFinishedArea" />
+    <Parameter Name="CastFieldType" Value="Edm.String" />
+    <Parameter Name="CastFieldValue" Value="1500" />
+    <Parameter Name="ConcatFieldOne" Value="StreetName" />
+    <Parameter Name="ConcatFieldOneValue" Value="<YOUR OneValue GOES HERE>" />
+    <Parameter Name="ConcatFieldTwo" Value="City" />
+    <Parameter Name="ConcatFieldTwoValue" Value="<YOUR TwoValue GOES HERE" />
+    <Parameter Name="ConcatFieldBothValue" Value="<Your OneValue: TwoValue GOES HERE" /> <!-- "OneValue: TwoValue" -->
+
+    <!-- System Specific Additional Required Parameters for Queries-->
+    <Parameter Name="RequiredParameters" Value="" />
+    <Parameter Name="RequiredParametersFilter" Value="" />
+    
+    <Parameter Name="OriginatingSystemNameField" Value="OriginatingSystemName" />
+    <Parameter Name="OriginatingSystemNameValue" Value="<YOUR OriginatingSystemNameValue GOES HERE" />
+  </Parameters>
+
+  <Requests>
+    <!-- CORE Level Tests -->
+    <Request OutputFile="REQ-WA103-END1_Service.json"   
+      Url="*ClientSettings_WebAPIURI*/" />
+    
+    <Request OutputFile="REQ-WA103-END2_DataSystem.json"
+      Url="" />
+    
+    <Request OutputFile="REQ-WA103-END3_Metadata.xml"          
+      Url="ClientSettings_WebAPIURI*/*Parameter_EndpointMetadata*" />
+    
+    <Request OutputFile="REQ-WA103-FullListing_NonTest.json"
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*" />
+
+    <Request OutputFile="REQ-WA103-Q1-1_Select_Case.json"
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$SeLeCt=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* eq *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*" />
+
+    <Request OutputFile="REQ-WA103-Q1-2_Filter_Case.json"
+            Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$FiLtEr=*Parameter_FilterNumericField* eq *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*" />
+    
+    <Request OutputFile="REQ-WA103-Q1-3a_OrderByAsc_Case.json" 
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_SortCount*&amp;$select=*Parameter_FilterNumericField*&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*&amp;$OrDeRbY=*Parameter_FilterNumericField* asc"/>
+    
+    <Request OutputFile="REQ-WA103-Q1-3b_OrderByDes_Case.json" 
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_SortCount*&amp;$select=*Parameter_FilterNumericField*&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*&amp;$oRdErBy=*Parameter_FilterNumericField* desc"/>
+
+    <Request OutputFile="REQ-WA103-QR1_UniqueID.json"         
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*(*Parameter_UniqueIDValue*)?$select=*Parameter_UniqueID*" />
+    
+    <Request OutputFile="REQ-WA103-QR3_Select.json"           
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*" />
+    
+    <Request OutputFile="REQ-WA103-QR4_Top.json"              
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*" />
+    
+    <Request OutputFile="REQ-WA103-QR5_Skip.json"             
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*&amp;$skip=*Parameter_TopCount*" />
+    
+    <Request OutputFile="REQ-WA103-TBD_Count.json"            
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$count=true" />
+    
+    <Request OutputFile="REQ-WA103-QO2_filter_eq.json"        
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* eq *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*" />
+    
+    <Request OutputFile="REQ-WA103-QO3_filter_ne.json"        
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* ne *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*" />
+    
+    <Request OutputFile="REQ-WA103-QO4_filter_gt.json"        
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*" />
+    
+    <Request OutputFile="REQ-WA103-QO5_filter_ge.json"        
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* ge *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*" />
+    
+    <Request OutputFile="REQ-WA103-QO6_filter_lt.json"        
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* lt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*" />
+    
+    <Request OutputFile="REQ-WA103-QO7_filter_le.json"        
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* le *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*" />
+    
+    <Request OutputFile="REQ-WA103-QO9_filter_and.json"       
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow* and *Parameter_FilterNumericField* lt *Parameter_FilterNumericValueHigh**Parameter_RequiredParameters*" />
+    
+    <Request OutputFile="REQ-WA103-QO10_filter_or.json"       
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueHigh* or *Parameter_FilterNumericField* lt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*" />
+    
+    <Request OutputFile="REQ-WA103-QO11_filter_not.json"    
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=not (*Parameter_FilterNotField* le *Parameter_FilterNotValue*)*Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO25_DateDate01.json"      
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=date(*Parameter_TimestampField*) gt *Parameter_DateValue**Parameter_RequiredParameters*"/>
+    
+    <Request OutputFile="REQ-WA103-QO26_DateTime01.json"      
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=time(*Parameter_TimestampField*) lt *Parameter_TimeValue**Parameter_RequiredParameters*"/>
+    
+    <Request OutputFile="REQ-WA103-QO26_DateTime02.json"      
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_TimestampField* lt *Parameter_DateTimeValue**Parameter_RequiredParameters*"/>
+    
+    <Request OutputFile="REQ-WA103-QO27_DateNow.json"         
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_TimestampField* le now()*Parameter_RequiredParameters*" />
+
+    <Request OutputFile="REQ-WA103-RC05_400BadRequest.json"          
+      Url="ClientSettings_WebAPIURI*/*Parameter_400BadRequest*" />
+    
+    <Request OutputFile="REQ-WA103-RC06_403Forbidden_Generic.json"   
+      Url="ClientSettings_WebAPIURI*/*Parameter_403Forbidden*" />
+    
+    <Request OutputFile="REQ-WA103-RC07_404NotFound.json"            
+      Url="*ClientSettings_WebAPIURI*/*Parameter_404NotFound*" />
+    
+    <Request OutputFile="REQ-WA103-RC06_403Forbidden.json" 
+      Url="*ClientSettings_WebAPIURI*/*Parameter_403Forbidden*" />
+    
+    <Request OutputFile="REQ-WA103-RC11_501NotImplemented.json"       
+      Url="ClientSettings_WebAPIURI*/*Parameter_501NotImplemented*"/>
+
+    <!-- Bronze Level Tests -->
+    <Request OutputFile="REQ-WA103-QO8_filter_has.json"       
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterHasField* has *Parameter_FilterHasValue**Parameter_RequiredParameters*"/>
+    
+    <Request OutputFile="REQ-WA103-QO28_OrderByAscFiltered.json"      
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_SortCount*&amp;$select=*Parameter_FilterNumericField*,*Parameter_TimestampField*&amp;$orderby=*Parameter_TimestampField* asc&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*"/>
+    
+    <Request OutputFile="REQ-WA103-QO28_OrderByAscNoFilter.json"      
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_SortCount*&amp;$select=*Parameter_FilterNumericField*,*Parameter_TimestampField*&amp;$orderby=*Parameter_TimestampField* asc"/>
+    
+    <Request OutputFile="REQ-WA103-QO28_OrderByDescFiltered.json"     
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_SortCount*&amp;$select=*Parameter_FilterNumericField*,*Parameter_TimestampField*&amp;$orderby=*Parameter_TimestampField* desc&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*"/>
+    
+    <Request OutputFile="REQ-WA103-QO28_OrderByDescNoFilter.json"     
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_SortCount*&amp;$select=*Parameter_FilterNumericField*,*Parameter_TimestampField*&amp;$orderby=*Parameter_TimestampField* desc"/>
+
+    <Request OutputFile="REQ-WA103-QM7_Enum_SVL.json"         
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_UniqueID*,*Parameter_SingleValueLookupField*&amp;$filter=*Parameter_SingleValueLookupField* has *Parameter_SingleValueLookupValue**Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QM8_Enum_MVL_Single.json"  
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_UniqueID*,*Parameter_MultipleValueLookupField*&amp;$filter=*Parameter_MultipleValueLookupField* has *Parameter_MultipleValueLookupValue1**Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QM8_Enum_MVL_Multi.json"   
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_UniqueID*,*Parameter_MultipleValueLookupField*&amp;$filter=*Parameter_MultipleValueLookupField* has *Parameter_MultipleValueLookupValue1* and *Parameter_MultipleValueLookupField* has *Parameter_MultipleValueLookupValue2**Parameter_RequiredParameters*"/>
+
+    <!-- Silver Level Tests -->
+      <!-- NO SILVER LEVEL TESTS BEING DONE -->
+
+    <!-- Gold Level Tests -->
+    <Request OutputFile="REQ-WA103-QO18_DateYear.json"
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=year(*Parameter_DateField*) eq *Parameter_YearValue**Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO18_TimeYear.json"        
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=year(*Parameter_TimestampField*) eq *Parameter_YearValue**Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO19_DateMonth.json"       
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=month(*Parameter_DateField*) eq *Parameter_MonthValue**Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO19_TimeMonth.json"       
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=month(*Parameter_TimestampField*) eq *Parameter_MonthValue**Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO20_DateDay.json"         
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=day(*Parameter_DateField*) eq *Parameter_DayValue**Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO20_TimeDay.json"         
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=day(*Parameter_TimestampField*) eq *Parameter_DayValue**Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO21_TimeHour.json"        
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=hour(*Parameter_TimestampField*) eq *Parameter_HourValue**Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO22_TimeMinute.json"      
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=minute(*Parameter_TimestampField*) gt *Parameter_MinuteValue**Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO23_TimeSecond.json"      
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=second(*Parameter_TimestampField*) lt *Parameter_SecondValue**Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO24_TimeFraction.json"    
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=fractionalseconds(*Parameter_TimestampField*) lt *Parameter_FractionalValue**Parameter_RequiredParameters*"/>
+
+    <!-- Platinum Level Tests -->
+    <Request OutputFile="REQ-WA103-QO12_Grouping.json"        
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=(*Parameter_FilterNumericField* eq *Parameter_FilterNumericValueLow*) and (*Parameter_FilterNumericField* le *Parameter_FilterNumericValueHigh* and *Parameter_FilterNumericField* ge *Parameter_FilterNumericValueLow*)*Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO13_Contains.json"        
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=contains(*Parameter_ContainsField*,'*Parameter_ContainsValue*')*Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO14_EndsWith.json"        
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=endswith(*Parameter_EndsWithField*,'*Parameter_EndsWithValue*')*Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO15_StartsWith.json"      
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=startswith(*Parameter_StartsWithField*,'*Parameter_StartsWithValue*')*Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO16_ToLowerEQ.json"       
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=tolower(*Parameter_ToLowerField*) eq '*Parameter_ToLowerValue*'*Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO17_ToUpperEQ.json"       
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=toupper(*Parameter_ToUpperField*) eq '*Parameter_ToUpperValue*'*Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO16_ToLowerContain.json"  
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=contains(tolower(*Parameter_ToLowerField*),'*Parameter_ToLowerValue*')*Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO17_ToUpperContain.json"  
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=contains(toupper(*Parameter_ToUpperField*),'*Parameter_ToUpperValue*')*Parameter_RequiredParameters*"/>
+
+    <Request OutputFile="REQ-WA103-QO29_Expand.json"                  
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*,*Parameter_ExpandField*&amp;$expand=*Parameter_ExpandField*"/>
+
+    <Request OutputFile="REQ-WA103-QO29_Expand_MediaPhotoCount.json"  
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*,*Parameter_ExpandField*&amp;$expand=*Parameter_ExpandField*&amp;$filter=PhotosCount gt 0"/>
+
+    <Request OutputFile="REQ-WA103-QO29_ExpandReqField.json"          
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*,*Parameter_ExpandField*&amp;$expand=*Parameter_ExpandField**Parameter_RequiredParametersFilter*"/>
+
+    <Request OutputFile="REQ-WA103-QM5_GeospatialLongLat_PointGeo.json"           
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=geo.distance(*Parameter_GeospatialField*, geography'POINT(*Parameter_GeospatialValue*)') le *Parameter_GeospatialDistanceValue*"/>
+
+    <Request OutputFile="REQ-WA103-QM5_GeospatialLongLat_LatGT1_PointGeo.json"    
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=geo.distance(*Parameter_GeospatialField*, geography'POINT(*Parameter_GeospatialValue*)') le *Parameter_GeospatialDistanceValue* and *Parameter_GeospatialLatitudeField* gt 1"/>
+
+    <Request OutputFile="REQ-WA103-ODATA-IntC1006_Value.json"    
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*(*Parameter_UniqueIDValue*)/*Parameter_ValueField*/$value" />
+
+    <Request OutputFile="REQ-WA103-QM3_Any.json"                  
+      Url="*ClientSettings_WebAPIURI*/$any?$top=1" />
+
+    <Request OutputFile="REQ-WA103-QM4_All.json"                  
+      Url="*ClientSettings_WebAPIURI*/$all?$top=1" />
+
+    <Request OutputFile="REQ-WA103-ODATA-SI-SQOFCA_Cast.json"     
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=cast(*Parameter_CastField*, '*Parameter_CastFieldType*') eq '*Parameter_CastFieldValue*'"/>
+
+    <Request OutputFile="REQ-WA103-ODATA-SI-SQOFCC_Concat.json"   
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=(concat(concat(*Parameter_ConcatFieldOne*, ' '), *Parameter_ConcatFieldTwo*) eq '*Parameter_ConcatFieldOneValue* *Parameter_ConcatFieldTwoValue*')"/>
+
+    <!-- Generic Web API Server Troubleshooting Queries not associated with specific tests -->
+    <Request OutputFile="REQ-WA103_WellKnownTest_Generic01.json"        
+      Url="*ClientSettings_WebAPIURI*/.well-known/"/>
+
+    <Request OutputFile="REQ-WA103_WellKnownTest_OpeinID01.json"        
+      Url="*ClientSettings_WebAPIURI*/.well-known/openid-configuration"/>
+
+  </Requests>
+</OutputScript>
