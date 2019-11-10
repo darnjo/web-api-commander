@@ -29,7 +29,7 @@ import static org.reso.commander.Commander.NOT_OK;
  * using the Commander class, which contains the actual methods for working with OData.
  * <p>
  * For usage, see README.
- * For documentation, see /doc*
+ * For documentation, see /docs
  * <p>
  */
 public class Main {
@@ -135,15 +135,14 @@ public class Main {
         int i = 0;
         for (Request request : settings.getRequests()) {
           try {
-            LOG.info("[Test #" + ++i + "]");
-            LOG.info("Test Name: [" + request.getName().replace(".json", "") + "]");
+            LOG.info("Test: #" + ++i);
+            LOG.info("Test Name: " + request.getName().replace(".json", ""));
 
             resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
 
             LOG.debug("Resolved URL: " + resolvedUrl);
             commander.saveRawGetRequest(resolvedUrl, path + "/" + request.getOutputFile());
             LOG.info("Request " + request.getName() + " complete!\n\n");
-            //log.info(DIVIDER + "\n\n");
           } catch (Exception ex) {
             LOG.error("ERROR: exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
           }

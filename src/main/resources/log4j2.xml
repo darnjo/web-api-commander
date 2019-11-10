@@ -2,20 +2,21 @@
 <Configuration>
     <Properties>
         <Property name="PATTERN">[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%level] [%c{1}] - %msg%n</Property>
-        <Property name="LOGFILE_NAME">commander.log</Property>
+        <Property name="SIMPLE_PATTERN">[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%level] - %msg%n</Property>
+        <Property name="LOGFILE_NAME">./commander.log</Property>
     </Properties>
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="${PATTERN}" />
+            <PatternLayout pattern="${SIMPLE_PATTERN}" />
         </Console>
-        <File name="File" fileName="${LOGFILE_NAME}" immediateFlush="false" append="false">
+        <File name="Log" fileName="${LOGFILE_NAME}" immediateFlush="false" append="false">
             <PatternLayout pattern="${PATTERN}"/>
         </File>
     </Appenders>
     <Loggers>
         <Root level="all">
             <AppenderRef ref="Console" level="info" />
-            <AppenderRef ref="File" level="debug"/>
+            <AppenderRef ref="Log" />
         </Root>
     </Loggers>
 </Configuration>
