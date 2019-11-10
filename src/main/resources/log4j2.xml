@@ -8,14 +8,14 @@
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="${PATTERN}" />
         </Console>
-        <File name="File" fileName="${LOGFILE_NAME}" immediateFlush="true" append="false">
+        <File name="File" fileName="${LOGFILE_NAME}" immediateFlush="false" append="false">
             <PatternLayout pattern="${PATTERN}"/>
         </File>
     </Appenders>
     <Loggers>
-        <Root level="trace">
+        <Root level="all">
             <AppenderRef ref="Console" level="info" />
-            <AppenderRef ref="File" />
+            <AppenderRef ref="File" level="debug"/>
         </Root>
     </Loggers>
 </Configuration>

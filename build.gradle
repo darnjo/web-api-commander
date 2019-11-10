@@ -24,8 +24,10 @@ dependencies {
   implementation 'com.google.guava:guava:27.0.1-jre'
 
   compile 'commons-cli:commons-cli:1.4'
-  compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.12.1'
+
   compile 'org.apache.logging.log4j:log4j-api:2.12.1'
+  compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.12.1'
+  compile 'org.apache.logging.log4j:log4j-1.2-api:2.12.1'
   compile 'org.apache.logging.log4j:log4j-core:2.12.1'
 
   compile 'org.apache.olingo:odata-client-api:4.6.0'
@@ -62,3 +64,5 @@ task copyJarToOut(type: Copy, dependsOn: [clean, jar]) {
 
 // Define the main class for the application
 mainClassName = 'org.reso.commander.Main'
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
