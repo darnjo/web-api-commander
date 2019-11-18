@@ -21,7 +21,7 @@ repositories {
 }
 
 dependencies {
-  implementation 'com.google.guava:guava:27.0.1-jre'
+  compile 'com.google.guava:guava:27.0.1-jre'
 
   compile 'commons-cli:commons-cli:1.4'
 
@@ -34,7 +34,7 @@ dependencies {
   compile 'org.apache.olingo:odata-commons-core:4.6.0'
   compile 'org.apache.olingo:odata-client-core:4.6.0'
 
-  testImplementation 'junit:junit:4.12'
+  compile 'junit:junit:4.12'
 }
 
 jar {
