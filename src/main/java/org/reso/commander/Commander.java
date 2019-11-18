@@ -17,7 +17,10 @@ import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.auth.OAuth2HttpClientFactory;
 import org.reso.auth.TokenHttpClientFactory;
+import org.xml.sax.*;
 
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
@@ -186,6 +189,45 @@ public class Commander {
   }
 
   /**
+   * Uses XML parser (SAX) to validate the given filename.
+   * @param filename the filename containing the XML to validate.
+   * @return true if the XML could be parsed, false otherwise.
+   */
+  private static boolean validateXML(String filename) {
+    boolean isValid = false;
+
+    SAXParserFactory factory = SAXParserFactory.newInstance();
+    factory.setValidating(false);
+    factory.setNamespaceAware(true);
+
+    try {
+      SAXParser parser = factory.newSAXParser();
+
+      XMLReader reader = parser.getXMLReader();
+      reader.setErrorHandler(new SimpleErrorHandler());
+      reader.parse(new InputSource(filename));
+      isValid = true;
+    } catch (Exception ex) {
+      LOG.error(ex);
+    }
+    return isValid;
+  }
+
+  public static class SimpleErrorHandler implements ErrorHandler {
+    public void warning(SAXParseException e) throws SAXException {
+      System.out.println(e.getMessage());
+    }
+
+    public void error(SAXParseException e) throws SAXException {
+      System.out.println(e.getMessage());
+    }
+
+    public void fatalError(SAXParseException e) throws SAXException {
+      System.out.println(e.getMessage());
+    }
+  }
+
+  /**
    * Validates the given metadata contained in the given file path.
    *
    * @param pathToEdmx the path to look for metadata in. Assumes metadata is stored as XML.
@@ -194,11 +236,13 @@ public class Commander {
   public boolean validateMetadata(String pathToEdmx) {
     boolean isValid = false;
     try {
-      // deserialize metadata from given file
-      XMLMetadata metadata =
-          client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(new FileInputStream(pathToEdmx));
+      if (validateXML(pathToEdmx)) {
+        // deserialize metadata from given file
+        XMLMetadata metadata =
+            client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(new FileInputStream(pathToEdmx));
 
-      isValid = validateMetadata(metadata);
+        isValid = validateMetadata(metadata);
+      }
 
     } catch (Exception ex) {
       LOG.error("Error occurred while validating metadata.\nPath was:" + pathToEdmx);

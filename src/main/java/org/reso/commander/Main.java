@@ -7,7 +7,6 @@ import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.resoscript.*;
-
 import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -169,6 +168,7 @@ public class Main {
         }
 
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.VALIDATE_METADATA)) {
+        commander = new Commander.Builder().build();
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.VALIDATE_METADATA);
 
         /**
@@ -181,7 +181,6 @@ public class Main {
           LOG.info("Valid Metadata!");
         } else {
           LOG.error("ERROR: Invalid Metadata!\n");
-          System.exit(NOT_OK);
         }
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_ENTITIES)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_ENTITIES);
