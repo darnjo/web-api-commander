@@ -48,6 +48,5 @@ public class TokenHttpClientFactory extends DefaultHttpClientFactory {
     } catch (Exception ex) {
       LOG.error(ex.toString());
     }
-
   }
 }

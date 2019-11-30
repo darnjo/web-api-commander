@@ -39,77 +39,114 @@ import java.util.function.Function;
  * the ones the Client programmer is expected to use.
  */
 public class Commander {
-  private ODataClient client;
-  private String serviceRoot;
-  private String bearerToken;
+  //one instance of client per Commander. See Builder
+  private static ODataClient client;
   private boolean useEdmEnabledClient;
+
+  String serviceRoot, bearerToken, clientId, clientSecret, authorizationUri, tokenUri, redirectUri, scope;
+  boolean isTokenClient, isOAuthClient;
 
   private static final Logger LOG = LogManager.getLogger(Commander.class);
 
   public final static int NOT_OK = 1;
 
   /**
-   * Creates a Commander instance that uses the given Bearer token for authentication and allows the Client
-   * to specify whether to use an EdmEnabledClient or normal OData client.
-   * <p>
-   * NOTE: serviceRoot can sometimes be null, but is required if useEdmEnabledClient is true.
-   * A check has been added for this condition.
-   * *
-   *
-   * @param serviceRoot         the service root of the WebAPI server.
-   * @param bearerToken         the bearer token to use to authenticate with the given serviceRoot.
-   * @param useEdmEnabledClient if true, the payload is checked against the Server's metadata for actions
-   *                            that support it.
+   * Builder pattern for creating Commander instances.
    */
-  public Commander(String serviceRoot, String bearerToken, boolean useEdmEnabledClient) {
-    this(serviceRoot, useEdmEnabledClient);
-    this.bearerToken = bearerToken;
+  public static class Builder {
+    String serviceRoot, bearerToken, clientId, clientSecret, authorizationUri, tokenUri, redirectUri, scope;
+    boolean useEdmEnabledClient;
 
-    client.getConfiguration().setHttpClientFactory(new TokenHttpClientFactory(bearerToken));
-  }
+    public Builder() {
+      this.useEdmEnabledClient = false;
+    }
 
-  public Commander(
-      String serviceRoot,
-      boolean useEdmEnabledClient,
-      String clientId,
-      String clientSecret,
-      String authorizationUri,
-      String tokenUri,
-      String redirectUri,
-      String scope) {
+    public Builder serviceRoot(String serviceRoot) {
+      this.serviceRoot = serviceRoot;
+      return this;
+    }
 
-    this(serviceRoot, useEdmEnabledClient);
+    public Builder bearerToken(String bearerToken) {
+      this.bearerToken = bearerToken;
+      return this;
+    }
 
-    client.getConfiguration().setHttpClientFactory(
-        new OAuth2HttpClientFactory(clientId, clientSecret, authorizationUri, tokenUri, redirectUri, scope));
-  }
+    public Builder clientId(String clientId) {
+      this.clientId = clientId;
+      return this;
+    }
 
-  /**
-   * Private constructor for internal use.
-   * <p>
-   * Creates a Commander instance that allows the caller to use an EdmEnabledClient,
-   * meaning that all payloads will be verified against the metadata published at serviceRoot.
-   *
-   * @param serviceRoot the service root of the WebAPI server.
-   */
-  private Commander(String serviceRoot, boolean useEdmEnabledClient) {
-    this.useEdmEnabledClient = useEdmEnabledClient;
+    public Builder clientSecret(String clientSecret) {
+      this.clientSecret = clientSecret;
+      return this;
+    }
 
-    this.serviceRoot = serviceRoot;
-    LOG.debug("\nUsing EdmEnabledClient: " + useEdmEnabledClient);
-    if (useEdmEnabledClient) {
-      client = ODataClientFactory.getEdmEnabledClient(serviceRoot);
-    } else {
-      client = ODataClientFactory.getClient();
+    public Builder authorizationUri(String authorizationUri) {
+      this.authorizationUri = authorizationUri;
+      return this;
+    }
+
+    public Builder tokenUri(String tokenUri) {
+      this.tokenUri = tokenUri;
+      return this;
+    }
+
+    public Builder redirectUri(String redirectURI) {
+      this.redirectUri = redirectURI;
+      return this;
+    }
+
+    public Builder scope(String scope) {
+      this.scope= scope;
+      return this;
+    }
+
+    public Builder useEdmEnabledClient(boolean useEdmEnabledClient) {
+      this.useEdmEnabledClient = useEdmEnabledClient;
+      return this;
+    }
+
+    public Commander build() {
+      Commander commander = new Commander();
+      commander.serviceRoot = this.serviceRoot;
+      commander.bearerToken = this.bearerToken;
+      commander.clientId = this.clientId;
+      commander.clientSecret = this.clientSecret;
+      commander.authorizationUri = this.authorizationUri;
+      commander.tokenUri = this.tokenUri;
+      commander.redirectUri = this.redirectUri;
+      commander.scope = this.scope;
+      commander.useEdmEnabledClient = this.useEdmEnabledClient;
+
+      //items required for OAuth client
+      commander.isOAuthClient =
+            clientId != null && clientId.length() > 0 &&
+            clientSecret != null && clientSecret.length() > 0 &&
+            authorizationUri != null && authorizationUri.length() > 0 &&
+            tokenUri != null && tokenUri.length() > 0;
+
+      //items required for token client
+      commander.isTokenClient = bearerToken != null && bearerToken.length() > 0;
+
+      LOG.debug("\nUsing EdmEnabledClient: " + useEdmEnabledClient + "...");
+      if (useEdmEnabledClient) {
+        client = ODataClientFactory.getEdmEnabledClient(serviceRoot);
+      } else {
+        client = ODataClientFactory.getClient();
+      }
+
+      if (commander.isOAuthClient) {
+        client.getConfiguration().setHttpClientFactory(new OAuth2HttpClientFactory(
+                clientId, clientSecret, authorizationUri, tokenUri, redirectUri, scope));
+      } else if (commander.isTokenClient) {
+        client.getConfiguration().setHttpClientFactory(new TokenHttpClientFactory(bearerToken));
+      }
+      return commander;
     }
   }
 
-  public String getBearerToken() {
-    return this.bearerToken;
-  }
-  public void setBearerToken(String bearerToken) {
-    this.bearerToken = bearerToken;
-  }
+  //private constructor for internal use, use Builder to construct instances
+  private Commander() { }
 
   /**
    * Gets server metadata in Edm format.
@@ -277,7 +314,7 @@ public class Commander {
    * @param requestUri     the URI to make the request against
    * @param outputFilePath the outputFilePath to write the response to
    */
-  public void saveRawGetRequest(String requestUri, String outputFilePath) {
+  public void saveGetRequest(String requestUri, String outputFilePath) {
     final String ERROR_EXTENSION = ".ERROR";
     File outputFile = null;
     try {
@@ -296,6 +333,7 @@ public class Commander {
         LOG.error("Exception occurred in saveRawGetRequest. " + ex.getMessage());
       }
     } finally {
+      assert outputFile != null;
       LOG.info("Output File: " + outputFile.getPath());
     }
   }
@@ -425,38 +463,6 @@ public class Commander {
   public void serializeEntitySet(ClientEntitySet entitySet, String outputFilePath) {
     //JSON is the default format, though other formats like JSON_FULL_METADATA and XML are supported as well
     serializeEntitySet(entitySet, outputFilePath, ContentType.JSON);
-  }
-
-  /**
-   * Builder pattern implemented for creating Commander instances
-   */
-  public static class Builder {
-    String serviceRoot;
-    String bearerToken;
-    boolean useEdmEnabledClient;
-
-    public Builder() {
-      useEdmEnabledClient = false;
-    }
-
-    public Builder serviceRoot(String serviceRoot) {
-      this.serviceRoot = serviceRoot;
-      return this;
-    }
-
-    public Builder bearerToken(String bearerToken) {
-      this.bearerToken = bearerToken;
-      return this;
-    }
-
-    public Builder useEdmEnabledClient(boolean useEdmEnabledClient) {
-      this.useEdmEnabledClient = useEdmEnabledClient;
-      return this;
-    }
-
-    public Commander build() {
-      return new Commander(serviceRoot, bearerToken, useEdmEnabledClient);
-    }
   }
 
   /**

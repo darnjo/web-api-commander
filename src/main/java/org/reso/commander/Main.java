@@ -7,6 +7,7 @@ import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.resoscript.*;
+
 import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -14,10 +15,11 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.function.Function;
 
+//TODO: move System.exit() logic from Commander to here
 import static org.reso.commander.Commander.NOT_OK;
 
 /**
- * Entry point of the RESO Web API Commander, which is a command lsrcine OData client that uses the Java Olingo
+ * Entry point of the RESO Web API Commander, which is a command line OData client that uses the Java Olingo
  * Client Library to handle OData and the Apache CXF library to handle Auth. Currently, the following forms
  * of Auth are supported:
  * <p>
@@ -37,54 +39,59 @@ public class Main {
   private static final String DIVIDER = "==============================================================";
 
   public static void main(String[] params) {
-
     // create the command line parser
     CommandLineParser parser = new org.apache.commons.cli.DefaultParser();
     Edm metadata = null;
-    Commander commander = null;
 
-    String serviceRoot, bearerToken;
+    //available Commander variables
+    String serviceRoot = null, bearerToken = null, clientId = null, clientSecret = null,
+        authorizationUri = null, tokenUri = null, redirectUri = null, scope = null;
+    String inputFile, outputFile, uri;
+    boolean useEdmEnabledClient;
+    int limit;
+
+    //created with the commanderBuilder throughout the initialization body
+    Commander commander;
+
+    //create a new Commander builder to be used throughout the initialization process
+    Commander.Builder commanderBuilder = new Commander.Builder();
 
     try {
       // parser for command line arguments
       CommandLine cmd = parser.parse(APP_OPTIONS.getOptions(), params);
 
-      serviceRoot = cmd.getOptionValue(APP_OPTIONS.SERVICE_ROOT, null);
-
-      // only bearer token support for now TODO: apache CXF for other forms of auth
-      bearerToken = cmd.getOptionValue(APP_OPTIONS.BEARER_TOKEN, null);
-
-      boolean useEdmEnabledClient = cmd.hasOption(APP_OPTIONS.USE_EDM_ENABLED_CLIENT);
+      // pre-load command line options for later use //
+      useEdmEnabledClient = cmd.hasOption(APP_OPTIONS.USE_EDM_ENABLED_CLIENT);
+      inputFile = cmd.getOptionValue(APP_OPTIONS.INPUT_FILE, null);
+      outputFile = cmd.getOptionValue(APP_OPTIONS.OUTPUT_FILE, null);
+      uri = cmd.getOptionValue(APP_OPTIONS.URI, null);
+      ContentType contentType = Commander.getContentType(cmd.getOptionValue(APP_OPTIONS.CONTENT_TYPE, null));
+      limit = Integer.parseInt(cmd.getOptionValue(APP_OPTIONS.LIMIT, "10")); //pass -1 to get all pages
 
       // using the edmEnabledClient requires the serviceRoot for schema validation, which is performed
       // against the payload each time the request is made when enabled.
       if (useEdmEnabledClient && !(cmd.hasOption(APP_OPTIONS.SERVICE_ROOT) || cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT))) {
-        printErrorMsgAndExit("\nERROR: --" + APP_OPTIONS.SERVICE_ROOT
-            + " is required with the --" + APP_OPTIONS.USE_EDM_ENABLED_CLIENT + " option!");
+        printErrorMsgAndExit("\nERROR: --" + APP_OPTIONS.SERVICE_ROOT + " is required with the --" + APP_OPTIONS.USE_EDM_ENABLED_CLIENT + " option!");
       }
 
-      // pre-load options for later use
-      String inputFile = cmd.getOptionValue(APP_OPTIONS.INPUT_FILE, null);
-      String outputFile = cmd.getOptionValue(APP_OPTIONS.OUTPUT_FILE, null);
-      String uri = cmd.getOptionValue(APP_OPTIONS.URI, null);
-      ContentType contentType = Commander.getContentType(cmd.getOptionValue(APP_OPTIONS.CONTENT_TYPE, null));
-
-      String clientId = null, clientSecret = null, authorizationUri = null, tokenUri = null, redirectURI = null, scope = null;
-
-      //pass -1 to get all pages, default is 10
-      int limit = Integer.parseInt(cmd.getOptionValue(APP_OPTIONS.LIMIT, "10"));
-
-      //if we're running from a RESOScript, load settings and extract the Bearer Token before we continue
+      //if we're running a batch, initialize variables from the settings file rather than from command line options
       Settings settings = null;
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
-        LOG.info(DIVIDER);
-        LOG.info("Web API Commander Starting... Press <ctrl+c> at any time to exit.");
-
         LOG.debug("Loading RESOScript: " + inputFile);
         settings = Settings.loadFromRESOScript(new File(inputFile));
+
+        if (settings == null) {
+          LOG.error("RESOScript option was specified but Settings could not be loaded.");
+          LOG.error("Input File: " + inputFile);
+          System.exit(NOT_OK);
+        }
+
         LOG.debug("RESOScript loaded successfully!");
 
-        LOG.debug("Setting Commander Bearer Token...");
+        serviceRoot = settings.getClientSettings().get(ClientSettings.WEB_API_URI);
+        LOG.debug("Service Root is:" + serviceRoot);
+
+        //TODO: add base64 un-encode when applicable
         bearerToken = settings.getClientSettings().get(ClientSettings.BEARER_TOKEN);
         if (bearerToken != null && bearerToken.length() > 0) {
           LOG.debug("Bearer token loaded... first 4 characters:" + bearerToken.substring(0, 4));
@@ -94,35 +101,34 @@ public class Main {
         clientSecret = settings.getClientSettings().get(ClientSettings.CLIENT_SECRET);
         authorizationUri = settings.getClientSettings().get(ClientSettings.AUTHORIZATION_URI);
         tokenUri = settings.getClientSettings().get(ClientSettings.TOKEN_URI);
-        redirectURI = settings.getClientSettings().get(ClientSettings.REDIRECT_URI);
+        redirectUri = settings.getClientSettings().get(ClientSettings.REDIRECT_URI);
         scope = settings.getClientSettings().get(ClientSettings.CLIENT_SCOPE);
 
-        serviceRoot = settings.getClientSettings().get(ClientSettings.WEB_API_URI);
         LOG.debug("Service root is: " + serviceRoot);
+      } else {
+        //otherwise, load from command line
+        serviceRoot = cmd.getOptionValue(APP_OPTIONS.SERVICE_ROOT, null);
+        bearerToken = cmd.getOptionValue(APP_OPTIONS.BEARER_TOKEN, null);
+      }
 
-        //try client credentials first, if they exist
-        if (clientId.length() > 0 && clientSecret.length() > 0 && tokenUri.length() > 0 && scope.length() > 0) {
-          //TODO: add builder for this
-          commander = new Commander(serviceRoot, useEdmEnabledClient, clientId, clientSecret, authorizationUri, tokenUri, redirectURI, scope);
-        } else if (bearerToken != null) {
-          // create a new Web API Commander
-          commander = new Commander.Builder()
-              .serviceRoot(serviceRoot)
-              .bearerToken(bearerToken)
-              .useEdmEnabledClient(useEdmEnabledClient)
-              .build();
-        }
+      //create Commander instance
+      commander = commanderBuilder
+          .clientId(clientId)
+          .clientSecret(clientSecret)
+          .authorizationUri(authorizationUri)
+          .tokenUri(tokenUri)
+          .redirectUri(redirectUri)
+          .scope(scope)
+          .serviceRoot(serviceRoot)
+          .bearerToken(bearerToken)
+          .build();
 
-        if (commander == null) {
-          LOG.error("Could not build Commander!");
-          System.exit(NOT_OK);
-        }
+      LOG.info(DIVIDER);
+      LOG.info("Web API Commander Starting... Press <ctrl+c> at any time to exit.");
+      LOG.info(DIVIDER);
 
-        if (settings == null) {
-          LOG.error("RESOScript option was specified but Settings could not be loaded.");
-          LOG.error("Input File: " + inputFile);
-          System.exit(NOT_OK);
-        }
+      //If the RESOScript option was passed, then the correct commander instance should exist at this point
+      if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
 
         LOG.info("Running " + settings.getRequests().size() + " Request(s)");
         LOG.info("RESOScript: " + inputFile);
@@ -131,16 +137,22 @@ public class Main {
         String path = inputFile.replace(".resoscript", "") + "-" + getTimestamp.apply(new Date());
         String resolvedUrl = null;
 
-        int i = 0;
-        for (Request request : settings.getRequests()) {
+        Request request;
+        for (int i = 0; i < settings.getRequests().size(); i++) {
           try {
-            LOG.info("Test: #" + ++i);
+            request = settings.getRequests().get(i);
+
+            //TODO: create dynamic JUnit (or similar) test runner
+            LOG.info("Test: #" + (i+1));
             LOG.info("Test Name: " + request.getName().replace(".json", ""));
 
             resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
 
             LOG.debug("Resolved URL: " + resolvedUrl);
-            commander.saveRawGetRequest(resolvedUrl, path + "/" + request.getOutputFile());
+
+            //output the result of the request to the resolved URL to the output file
+            commander.saveGetRequest(resolvedUrl, path + "/" + request.getOutputFile());
+
             LOG.info("Request " + request.getName() + " complete!\n\n");
           } catch (Exception ex) {
             LOG.error("ERROR: exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
@@ -150,8 +162,14 @@ public class Main {
         LOG.info(DIVIDER);
         LOG.info("RESOScript Complete!");
         LOG.info(DIVIDER + "\n\n");
+        System.exit(0); //terminate the program after the batch completes
+      }
 
-      } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_METADATA)) {
+
+      /* otherwise, not a batch request...
+         proceed with the selected command-line option */
+
+      if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_METADATA)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_METADATA);
 
         metadata = commander.getMetadata();
@@ -212,7 +230,7 @@ public class Main {
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.SAVE_RAW_GET_REQUEST)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.SAVE_RAW_GET_REQUEST);
 
-        commander.saveRawGetRequest(uri, outputFile);
+        commander.saveGetRequest(uri, outputFile);
 
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.CONVERT_EDMX_TO_OAI)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.CONVERT_EDMX_TO_OAI);
