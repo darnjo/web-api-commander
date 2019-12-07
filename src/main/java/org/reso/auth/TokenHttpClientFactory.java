@@ -1,6 +1,6 @@
 package org.reso.auth;
 
-import org.apache.http.client.HttpClient;;
+import org.apache.http.client.HttpClient;
 import org.apache.http.protocol.HTTP;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;

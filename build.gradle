@@ -41,7 +41,7 @@ jar {
   manifest {
     attributes(
         'Class-Path': configurations.compile.collect { it.getName() }.join(' '),
-        'Main-Class': 'org.reso.commander.Main'
+        'Main-Class': 'org.reso.commander.App'
     )
   }
 

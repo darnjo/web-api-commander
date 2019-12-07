@@ -26,16 +26,16 @@ import static org.reso.commander.Commander.NOT_OK;
  * - Bearer Tokens
  * <p>
  * Exposes several different actions for working with OData-based WebAPI servers.
- * This application is structured so that the Main class is an OData WebAPI consumer
+ * This application is structured so that the App class is an OData WebAPI consumer
  * using the Commander class, which contains the actual methods for working with OData.
  * <p>
  * For usage, see README.
  * For documentation, see /docs
  * <p>
  */
-public class Main {
+public class App {
 
-  private static final Logger LOG = LogManager.getLogger(Main.class);
+  private static final Logger LOG = LogManager.getLogger(App.class);
   private static final String DIVIDER = "==============================================================";
 
   public static void main(String[] params) {
@@ -46,7 +46,7 @@ public class Main {
     //available Commander variables
     String serviceRoot = null, bearerToken = null, clientId = null, clientSecret = null,
         authorizationUri = null, tokenUri = null, redirectUri = null, scope = null;
-    String inputFile, outputFile, uri;
+    String inputFilename, outputFile, uri;
     boolean useEdmEnabledClient;
     int limit;
 
@@ -62,7 +62,7 @@ public class Main {
 
       // pre-load command line options for later use //
       useEdmEnabledClient = cmd.hasOption(APP_OPTIONS.USE_EDM_ENABLED_CLIENT);
-      inputFile = cmd.getOptionValue(APP_OPTIONS.INPUT_FILE, null);
+      inputFilename = cmd.getOptionValue(APP_OPTIONS.INPUT_FILE, null);
       outputFile = cmd.getOptionValue(APP_OPTIONS.OUTPUT_FILE, null);
       uri = cmd.getOptionValue(APP_OPTIONS.URI, null);
       ContentType contentType = Commander.getContentType(cmd.getOptionValue(APP_OPTIONS.CONTENT_TYPE, null));
@@ -77,12 +77,12 @@ public class Main {
       //if we're running a batch, initialize variables from the settings file rather than from command line options
       Settings settings = null;
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
-        LOG.debug("Loading RESOScript: " + inputFile);
-        settings = Settings.loadFromRESOScript(new File(inputFile));
+        LOG.debug("Loading RESOScript: " + inputFilename);
+        settings = Settings.loadFromRESOScript(new File(inputFilename));
 
         if (settings == null) {
           LOG.error("RESOScript option was specified but Settings could not be loaded.");
-          LOG.error("Input File: " + inputFile);
+          LOG.error("Input File: " + inputFilename);
           System.exit(NOT_OK);
         }
 
@@ -123,22 +123,27 @@ public class Main {
           .bearerToken(bearerToken)
           .build();
 
-      LOG.info(DIVIDER);
-      LOG.info("Web API Commander Starting... Press <ctrl+c> at any time to exit.");
-      LOG.info(DIVIDER);
-
       //If the RESOScript option was passed, then the correct commander instance should exist at this point
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
+        int numRequests = settings.getRequests().size();
 
-        LOG.info("Running " + settings.getRequests().size() + " Request(s)");
-        LOG.info("RESOScript: " + inputFile);
+        LOG.info(DIVIDER);
+        LOG.info("Web API Commander Starting... Press <ctrl+c> at any time to exit.");
+        LOG.info(DIVIDER);
+
+        LOG.info("Running " + numRequests + " Request(s)");
+        LOG.info("RESOScript: " + inputFilename);
         LOG.info(DIVIDER + "\n\n");
 
-        String path = inputFile.replace(".resoscript", "") + "-" + getTimestamp.apply(new Date());
+        //put in local directory rather than relative to where the input file is
+        String directoryName = System.getProperty("user.dir"),
+            path = inputFilename
+            .substring(inputFilename.lastIndexOf(File.separator), inputFilename.length())
+            .replace(".resoscript", "") + "-" + getTimestamp(new Date());
         String resolvedUrl = null;
 
         Request request;
-        for (int i = 0; i < settings.getRequests().size(); i++) {
+        for (int i = 0; i < numRequests; i++) {
           try {
             request = settings.getRequests().get(i);
 
@@ -151,7 +156,7 @@ public class Main {
             LOG.debug("Resolved URL: " + resolvedUrl);
 
             //output the result of the request to the resolved URL to the output file
-            commander.saveGetRequest(resolvedUrl, path + "/" + request.getOutputFile());
+            commander.saveGetRequest(resolvedUrl, directoryName + path + File.separator + request.getOutputFile());
 
             LOG.info("Request " + request.getName() + " complete!\n\n");
           } catch (Exception ex) {
@@ -190,12 +195,12 @@ public class Main {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.VALIDATE_METADATA);
 
         /**
-         * Validates the metadata in inputFile in three ways:
+         * Validates the metadata in inputFilename in three ways:
          *    - de-serializes it into a native Edm object, which will fail if given metadata isn't valid
          *    - verifies whether the given EDMX file is a valid service document
          *    - verifies whether the given EDMX file is in version 4 format
          */
-        if (commander.validateMetadata(inputFile)) {
+        if (commander.validateMetadata(inputFilename)) {
           LOG.info("Valid Metadata!");
         } else {
           LOG.error("ERROR: Invalid Metadata!\n");
@@ -236,7 +241,7 @@ public class Main {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.CONVERT_EDMX_TO_OAI);
 
         //converts metadata in input source file to output file
-        commander.convertEDMXToSwagger(inputFile);
+        commander.convertEDMXToSwagger(inputFilename);
 
       } else {
         printHelp(APP_OPTIONS.getOptions());
@@ -327,7 +332,7 @@ public class Main {
     }
 
     /**
-     * Validates options for the various actions exposed in Main.
+     * Validates options for the various actions exposed in App.
      * <p>
      * TODO: determine if there's a way this can be handled using Commons Command.
      *
@@ -466,8 +471,13 @@ public class Main {
     }
   }
 
-  private static Function<Date, String> getTimestamp = (date) -> {
+  /**
+   * Gets a formatted date string for the given date.
+   * @param date the date to format
+   * @return date string in yyyyMMddHHMMssS format
+   */
+  private static String getTimestamp(Date date) {
     DateFormat df = new SimpleDateFormat("yyyyMMddHHMMssS");
     return df.format(date);
-  };
+  }
 }

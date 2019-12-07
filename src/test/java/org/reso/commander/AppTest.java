@@ -5,9 +5,9 @@ package org.reso.commander;
 
 import org.junit.Test;
 
-public class MainTest {
+public class AppTest {
     @Test public void testAppHasAGreeting() {
-        Main classUnderTest = new Main();
+        App classUnderTest = new App();
         //assertNotNull("app should have a greeting", classUnderTest.getGreeting());
     }
 }

@@ -7,7 +7,7 @@
     </Properties>
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="${SIMPLE_PATTERN}" />
+            <PatternLayout pattern="\r${SIMPLE_PATTERN}" />
         </Console>
         <File name="Log" fileName="${LOGFILE_NAME}" immediateFlush="false" append="false">
             <PatternLayout pattern="${PATTERN}"/>
