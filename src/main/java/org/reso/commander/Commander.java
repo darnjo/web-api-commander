@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.olingo.client.api.ODataClient;
 import org.apache.olingo.client.api.communication.ODataClientErrorException;
+import org.apache.olingo.client.api.communication.response.ODataRawResponse;
 import org.apache.olingo.client.api.communication.response.ODataRetrieveResponse;
 import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
@@ -17,6 +18,7 @@ import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.auth.OAuth2HttpClientFactory;
 import org.reso.auth.TokenHttpClientFactory;
+import org.reso.resoscript.Request;
 import org.xml.sax.*;
 
 import javax.xml.parsers.SAXParser;
@@ -291,7 +293,7 @@ public class Commander {
   /**
    * Prepares a URI for an OData request
    */
-  private Function<String, URI> prepareURI = uriString -> {
+  private URI prepareURI(String uriString) {
     try {
         URL url = new URL(uriString);
         URIBuilder uriBuilder = new URIBuilder();
@@ -305,7 +307,7 @@ public class Commander {
       LOG.error("ERROR in prepareURI: " + ex.toString());
     }
     return null;
-  };
+  }
 
   /**
    * Executes a get request on URI and saves raw response to outputFilePath.
@@ -314,27 +316,41 @@ public class Commander {
    * @param requestUri     the URI to make the request against
    * @param outputFilePath the outputFilePath to write the response to
    */
-  public void saveGetRequest(String requestUri, String outputFilePath) {
+  public Integer saveGetRequest(String requestUri, String outputFilePath) {
     final String ERROR_EXTENSION = ".ERROR";
     File outputFile = null;
+    InputStream inputStream = null;
+    ODataRawResponse oDataRawResponse = null;
+    Integer responseCode = null;
+
     try {
-      LOG.debug("RequestURI: " + requestUri);
-      outputFile = new File(outputFilePath);
-      FileUtils.copyInputStreamToFile(
-          client.getRetrieveRequestFactory().getRawRequest(prepareURI.apply(requestUri)).rawExecute(), outputFile);
-    } catch (Exception ex) {
+      if (requestUri != null && requestUri.length() > 0) {
+        LOG.debug("Request URI: " + requestUri);
+        outputFile = new File(outputFilePath);
+        oDataRawResponse = client.getRetrieveRequestFactory().getRawRequest(prepareURI(requestUri)).execute();
+        responseCode = oDataRawResponse.getStatusCode();
+        inputStream = oDataRawResponse.getRawResponse();
+        FileUtils.copyInputStreamToFile(inputStream, outputFile);
+      } else {
+        LOG.info("Empty Request Uri... Skipping!");
+      }
+    } catch (ODataClientErrorException oex) {
       outputFile = new File(outputFilePath + ERROR_EXTENSION);
-      String errMsg = "Request URI: " + requestUri + "\n\nERROR:" + ex.toString();
+      String errMsg = "Request URI: " + requestUri + "\n\nERROR:" + oex.toString();
+      responseCode = oex.getStatusLine().getStatusCode();
       try {
         FileUtils.writeByteArrayToFile(outputFile, errMsg.getBytes());
       } catch (IOException ioEx) {
         LOG.error("Could not write to error log file!");
       } finally {
-        LOG.error("Exception occurred in saveRawGetRequest. " + ex.getMessage());
+        LOG.error("Exception occurred in saveRawGetRequest. " + oex.getMessage());
       }
     } finally {
-      assert outputFile != null;
-      LOG.info("Output File: " + outputFile.getPath());
+      if (requestUri != null && requestUri.length() > 0) {
+        assert outputFile != null;
+        LOG.info("Output File: " + outputFile.getPath());
+      }
+      return responseCode;
     }
   }
 
@@ -361,13 +377,21 @@ public class Commander {
     // function to create URIs from skips and local params
     Function<Integer, URI> buildSkipUri = skip -> {
       try {
-        URIBuilder uriBuilder = new URIBuilder(prepareURI.apply(requestUri));
-        if (skip != null && skip > 0) uriBuilder.addParameter("$skip", skip.toString());
+        URIBuilder uriBuilder = null;
+        URI preparedUri = prepareURI(requestUri);
 
-        URI uri = uriBuilder.build();
-        LOG.debug("URI created: " + uri.toString());
+        if (requestUri != null && requestUri.length() > 0 && preparedUri != null) {
+          uriBuilder = new URIBuilder(preparedUri);
 
-        return uri;
+          if (uriBuilder != null) {
+            if (skip != null && skip > 0) uriBuilder.addParameter("$skip", skip.toString());
+
+            URI uri = uriBuilder.build();
+            LOG.debug("URI created: " + uri.toString());
+
+            return uri;
+          }
+        }
       } catch (Exception ex) {
         LOG.error("ERROR: " + ex.toString());
       }

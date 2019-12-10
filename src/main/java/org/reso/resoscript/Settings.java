@@ -10,7 +10,7 @@ import java.util.List;
  * * parameters - arbitrary collection of user-defined parameters
  * * requests - list of requests, one filter string per request, corresponding to a saved search
  */
-public class Settings {
+public class  Settings {
   private ClientSettings clientSettings;
   private Parameters parameters;
   private List<Request> requests;
@@ -71,7 +71,8 @@ public class Settings {
       }
     }
     //TODO: need deep-copy for Request if they get more complicated
-    return new Request(request.getOutputFile(), resolved.toString());
+    return new Request(request.getRequirementId(), request.getOutputFile(), resolved.toString(), request.getTestDescription(),
+        request.getMetallicLevel(), request.getCapability(), request.getWebApiReference(), request.getAssertResponseCode());
   }
 
   /**

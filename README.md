@@ -198,7 +198,7 @@ was made as well as the Java exception that was thrown, which most frequently co
 OLingo library and provides a sufficient amount of information to determine what occurred with the query.
 
 For those wanting more information, a `log4j.properties` file may be created (as shown below), or you may 
-use the DEBUG build of the application located in `/out/` identified by `-DEBUG` in the Commander jar's file name.
+use the DEBUG build of the application located in `/build/libs/` identified by `-DEBUG` in the Commander jar's file name.
 
 RESOScript files contain zero or more Settings, Parameters, and Requests. For example:
 ```

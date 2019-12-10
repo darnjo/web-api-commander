@@ -4,6 +4,7 @@ import org.apache.commons.cli.*;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
+import org.apache.olingo.client.api.http.HttpClientException;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.resoscript.*;
@@ -15,7 +16,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.function.Function;
 
-//TODO: move System.exit() logic from Commander to here
 import static org.reso.commander.Commander.NOT_OK;
 
 /**
@@ -37,6 +37,16 @@ public class App {
 
   private static final Logger LOG = LogManager.getLogger(App.class);
   private static final String DIVIDER = "==============================================================";
+
+  private static final class Stats {
+    int numRequests;
+    Date dateStart, dateEnd;
+
+    Stats() {
+      dateStart = new Date();
+    }
+
+  }
 
   public static void main(String[] params) {
     // create the command line parser
@@ -126,6 +136,8 @@ public class App {
       //If the RESOScript option was passed, then the correct commander instance should exist at this point
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
         int numRequests = settings.getRequests().size();
+        Stats stats = new Stats();
+        stats.numRequests = numRequests;
 
         LOG.info(DIVIDER);
         LOG.info("Web API Commander Starting... Press <ctrl+c> at any time to exit.");
@@ -143,24 +155,40 @@ public class App {
         String resolvedUrl = null;
 
         Request request;
+        Integer responseCode = null;
         for (int i = 0; i < numRequests; i++) {
           try {
             request = settings.getRequests().get(i);
 
             //TODO: create dynamic JUnit (or similar) test runner
             LOG.info("Test: #" + (i+1));
-            LOG.info("Test Name: " + request.getName().replace(".json", ""));
+            LOG.info("======================");
+            LOG.info("Test Name: " + (request.getName() != null ? request.getName().replace(".json", "") : "Not Specified"));
+
+            //TODO: function-ize the property test
+            LOG.info("Test Description: " + (request.getTestDescription().length() > 0 ? request.getTestDescription() : "Not Specified"));
+            LOG.info("Requirement Id: " + (request.getRequirementId().length() > 0 ? request.getRequirementId() : "Not Specified"));
+            LOG.info("Metallic Level: " + (request.getMetallicLevel().length() > 0 ? request.getMetallicLevel() : "Not Specified"));
+            LOG.info("Capability: " + (request.getCapability().length() > 0 ? request.getCapability() : "Not Specified"));
+            LOG.info("Web API Reference: " + (request.getWebApiReference().length() > 0 ? request.getWebApiReference() : "Not Specified"));
 
             resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
+            LOG.info("Resolved URL: " + resolvedUrl);
 
-            LOG.debug("Resolved URL: " + resolvedUrl);
+            responseCode = commander.saveGetRequest(resolvedUrl,
+                  directoryName + path + File.separator + request.getOutputFile());
 
-            //output the result of the request to the resolved URL to the output file
-            commander.saveGetRequest(resolvedUrl, directoryName + path + File.separator + request.getOutputFile());
+            if (responseCode != null && request.getAssertResponseCode() != null) {
+              if (responseCode == Integer.parseInt(request.getAssertResponseCode())) {
+                LOG.info("Assert Response Code " + request.getAssertResponseCode() + " passed!");
+              }
+            }
 
-            LOG.info("Request " + request.getName() + " complete!\n\n");
+            LOG.info("Request " + request.getRequirementId() + " complete!\n\n\n");
           } catch (Exception ex) {
-            LOG.error("ERROR: exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
+            LOG.error("Exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
+            LOG.error("Stack trace:");
+            Arrays.stream(ex.getStackTrace()).forEach(stackTraceElement -> LOG.error(stackTraceElement.toString()));
           }
         }
 
@@ -169,7 +197,6 @@ public class App {
         LOG.info(DIVIDER + "\n\n");
         System.exit(0); //terminate the program after the batch completes
       }
-
 
       /* otherwise, not a batch request...
          proceed with the selected command-line option */

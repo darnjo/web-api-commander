@@ -16,12 +16,15 @@ import java.util.Date;
 import java.util.List;
 
 public class Request {
+    private String requirementId;
     private String name;
     private String outputFile;
     private String url;
-    private Date lastRun;
-    private Integer lastRunCount;
-    private Date createdOn;
+    private String testDescription;
+    private String metallicLevel;
+    private String capability;
+    private String webApiReference;
+    private String assertResponseCode;
 
     /**
      * Public constructor requires both outputFile and url. Remaining Request properties
@@ -30,9 +33,17 @@ public class Request {
      * @param outputFile
      * @param url
      */
-    public Request(String outputFile, String url) {
+    public Request(String requirementId, String outputFile, String url, String testDescription, String metallicLevel,
+                   String capability, String webApiReference, String assertResponseCode) {
+
+        setRequirementId(requirementId);
         setOutputFile(outputFile);
         setUrl(url);
+        setTestDescription(testDescription);
+        setMetallicLevel(metallicLevel);
+        setCapability(capability);
+        setWebApiReference(webApiReference);
+        setAssertResponseCode(assertResponseCode);
     }
 
     /**
@@ -42,7 +53,7 @@ public class Request {
      * @return the named item, if present. Otherwise null
      */
     private static String safeGetNamedItem(String name, Node node) {
-        Node named = node.getAttributes().getNamedItem(name);
+        Node named = name != null && node != null ? node.getAttributes().getNamedItem(name) : null;
         return named != null ? named.getNodeValue() : null;
     }
 
@@ -64,7 +75,8 @@ public class Request {
             String expression = "/OutputScript/" + REQUESTS_KEY + "/node()";
             NodeList nodes = (NodeList) xPath.compile(expression).evaluate(xmlDocument, XPathConstants.NODESET);
             Node node;
-            String name, outputFile, url;
+            String name, outputFile, url, testDescription, requirementId, metallicLevel, capability, webApiReference,
+                    assertResponseCode;
             Request request;
 
             for (int i = 0; i < nodes.getLength(); i++) {
@@ -73,20 +85,33 @@ public class Request {
                 if (node.getNodeType() == Node.ELEMENT_NODE) {
                     outputFile = safeGetNamedItem(FIELDS.OUTPUT_FILE, node);
                     url = safeGetNamedItem(FIELDS.URL, node);
+                    testDescription = safeGetNamedItem(FIELDS.TEST_DESCRIPTION, node);
+                    requirementId = safeGetNamedItem(FIELDS.REQUIREMENT_ID, node);
+                    metallicLevel = safeGetNamedItem(FIELDS.METALLIC_LEVEL, node);
+                    capability = safeGetNamedItem(FIELDS.CAPABILITY, node);
+                    webApiReference = safeGetNamedItem(FIELDS.WEB_API_REFERENCE, node);
+                    assertResponseCode = safeGetNamedItem(FIELDS.ASSERT_RESPONSE_CODE, node);
 
-                    request = new Request(outputFile, url);
+                    request = new Request(requirementId, outputFile, url, testDescription, metallicLevel, capability, webApiReference, assertResponseCode);
 
                     name = safeGetNamedItem(FIELDS.NAME, node);
                     request.setName(name == null ? outputFile : name);
 
                     requests.add(request);
-
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
         return requests;
+    }
+
+    public String getRequirementId() {
+        return requirementId;
+    }
+
+    public void setRequirementId(String requirementId) {
+        this.requirementId = requirementId;
     }
 
     /**
@@ -137,60 +162,55 @@ public class Request {
         this.url = url;
     }
 
-    /**
-     * Last run getter
-     * @return the date the request was last run, or null
-     */
-    public Date getLastRun() {
-        return lastRun;
+    public String getTestDescription() {
+        return testDescription;
     }
 
-    /**
-     * Last run setter
-     * @param lastRun the date the request was last run, or null
-     */
-    public void setLastRun(Date lastRun) {
-        this.lastRun = lastRun;
+    public void setTestDescription(String testDescription) {
+        this.testDescription = testDescription;
     }
 
-    /**
-     * Last run count getter
-     * @return the number of of records returned the last time this request was run, or null
-     */
-    public Integer getLastRunCount() {
-        return lastRunCount;
+    public String getMetallicLevel() {
+        return metallicLevel;
     }
 
-    /**
-     * Last run count setter
-     * @param lastRunCount the number of records returned the last time this request was run, or null
-     */
-    public void setLastRunCount(Integer lastRunCount) {
-        this.lastRunCount = lastRunCount;
+    public void setMetallicLevel(String metallicLevel) {
+        this.metallicLevel = metallicLevel;
     }
 
-    /**
-     * Date created getter
-     * @return the date the request was created, or null
-     */
-    public Date getCreatedOn() {
-        return createdOn;
+    public String getCapability() {
+        return capability;
     }
 
-    /**
-     * Date created setter
-     * @param createdOn the date the request was created, or null
-     */
-    public void setCreatedOn(Date createdOn) {
-        this.createdOn = createdOn;
+    public void setCapability(String capability) {
+        this.capability = capability;
+    }
+
+    public String getWebApiReference() {
+        return webApiReference;
+    }
+
+    public void setWebApiReference(String webApiReference) {
+        this.webApiReference = webApiReference;
+    }
+
+    public String getAssertResponseCode() {
+        return assertResponseCode;
+    }
+
+    public void setAssertResponseCode(String assertResponseCode) {
+        this.assertResponseCode = assertResponseCode;
     }
 
     private static final class FIELDS {
         static final String NAME = "Name";
         static final String OUTPUT_FILE = "OutputFile";
         static final String URL = "Url";
-        static final String LAST_RUN = "LastRun";
-        static final String LAST_RUN_COUNT = "LastRunCount";
-        static final String CREATED_ON = "CreatedOn";
+        static final String TEST_DESCRIPTION = "TestDescription";
+        static final String REQUIREMENT_ID = "RequirementId";
+        static final String METALLIC_LEVEL = "MetallicLevel";
+        static final String CAPABILITY = "Capability";
+        static final String WEB_API_REFERENCE = "WebAPIReference";
+        static final String ASSERT_RESPONSE_CODE = "AssertResponseCode";
     }
 }

@@ -57,11 +57,6 @@ tasks.withType(JavaCompile) {
   options.deprecation = true
 }
 
-task copyJarToOut(type: Copy, dependsOn: [clean, jar]) {
-  from jar
-  into "out"
-}
-
 // Define the main class for the application
 mainClassName = 'org.reso.commander.Main'
 sourceCompatibility = 1.8
