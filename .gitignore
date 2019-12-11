@@ -2,6 +2,8 @@
 .gradle
 
 # Ignore Gradle build output directory
+gradle/
+
 build/tmp
 build/classes
 build/distributions
@@ -12,5 +14,4 @@ build/scripts
 build/test-results
 .idea/
 *.log
-gradle/
 *.iml
