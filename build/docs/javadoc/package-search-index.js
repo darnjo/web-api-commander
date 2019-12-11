@@ -1,1 +1,0 @@
-packageSearchIndex = [{"l":"All Packages","url":"allpackages-index.html"},{"l":"org.reso.auth"},{"l":"org.reso.commander"},{"l":"org.reso.resoscript"}]

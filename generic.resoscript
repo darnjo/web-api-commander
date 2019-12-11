@@ -30,25 +30,27 @@
   <Parameters>
 
     <!-- URI of OData metadata endpoint-->
-    <Parameter Name="EndpointMetadata" Value="/$metadata" />
+    <Parameter Name="EndpointMetadata" Value="$metadata" />
 
     <!-- REQUIRED: The endpoint resource being tested-->
     <Parameter Name="EndpointResource" Value="Properties" />
 
     <!-- HTTP Code Testing -->
-    <Parameter Name="200_OK" Value="/*Parameter_EndpointResource*" />
 
-    <!-- 400 Bad Request - Requires Full URL & Separate Login Credentials -->
-    <Parameter Name="400BadRequest" Value="*ClientSettings_WebAPIURI/*Parameter_EndpointResource*?$filter=BadField eq 'SoBad'" />
+    <!-- REQUIRED: 200 Response OK -->
+    <Parameter Name="200_OK" Value="*Parameter_EndpointResource*" />
 
-    <!-- 403 Forbidden -->
-    <Parameter Name="403Forbidden" Value="*ClientSettings_WebAPIURI*/Teams" />
+    <!-- REQUIRED: 400 Bad Request - Requires Full URL & Separate Login Credentials -->
+    <Parameter Name="400BadRequest" Value="*Parameter_EndpointResource*?$filter=BadField eq 'SoBad'" />
 
-    <!-- 404 Not Found -->
-    <Parameter Name="404NotFound" Value="*ClientSettings_WebAPIURI*/ResourceNotFound" />
+    <!-- REQUIRED: 403 Forbidden -->
+    <Parameter Name="403Forbidden" Value="Teams" />
 
-    <!-- 501 Not Implemented - "Any successful 200 return can be edited; Edit to ""POST"" in Fiddler; Add ""Content-Length: Chunked"" before Bearer Token" -->
-    <Parameter Name="501NotImplemented" Value="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$search=red OR blue" />
+    <!-- REQUIRED: 404 Not Found -->
+    <Parameter Name="404NotFound" Value="ResourceNotFound" />
+
+    <!-- REQUIRED: 501 Not Implemented -->
+    <Parameter Name="501NotImplemented" Value="*Parameter_EndpointResource*?$search=red OR blue" />
 
     <!-- MISC PARAMETERS  -->
 
@@ -113,9 +115,9 @@
 
     <!-- REQUIRED: Date Fields for testing -->
     <Parameter Name="DateField" Value="ListingContractDate" />
-    <Parameter Name="DateTimeValue" Value="2016-12-31T23:55:55-09:00" />
-    <Parameter Name="DateValue" Value="2016-12-31" />
-    <Parameter Name="YearValue" Value="2016" />
+    <Parameter Name="DateTimeValue" Value="2018-12-31T23:55:55-09:00" />
+    <Parameter Name="DateValue" Value="2018-12-31" />
+    <Parameter Name="YearValue" Value="2018" />
     <Parameter Name="MonthValue" Value="12" />
     <Parameter Name="DayValue" Value="31" />
     <Parameter Name="TimestampField" Value="ModificationTimestamp" />
@@ -144,6 +146,27 @@
 
   <Requests>
 
+  <!-- NOTE: for this test, we always assume that /$metadata is relative to the Web API Service Root, referred to as WebAPIURI here -->
+  <Request
+      TestDescription="Metadata Endpoint"
+      RequirementId="REQ-WA103-END3"
+      MetallicLevel="Core"
+      Capability="Core Support"
+      WebAPIReference=""
+      OutputFile="REQ-WA103-END3_Metadata.xml"
+      Url="*ClientSettings_WebAPIURI*/$metadata?$format=application/xml"
+    />
+
+    <Request
+      TestDescription="Data System"
+      RequirementId="REQ-WA103-END2"
+      MetallicLevel="Core"
+      Capability="Core Support"
+      WebAPIReference=""
+      OutputFile="REQ-WA103-END2_DataSystem.json"
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointDataSystems*"
+    />
+
     <Request
       TestDescription="Field names are case sensitive when used in the $select, $filter, and $orderby parameters. Case sensitivity is tested against the values defined in the resource metadata. Case sensitivity MUST be supported."
       RequirementId="REQ-WA103-Q1"
@@ -163,7 +186,7 @@
       Capability="Query functions"
       WebAPIReference=""
       OutputFile="REQ-WA103-Q2.json"
-      Url=""
+      Url="*Parameter_QueryTooComplexUri*"
       AssertResponseCode="20211"
     />
 
@@ -725,163 +748,68 @@
       TestDescription="Service Endpoint"
       RequirementId="REQ-WA103-END1"
       MetallicLevel="Core"
-      Capability="Core"
+      Capability="Core Support"
       WebAPIReference=""
       OutputFile="REQ-WA103-END1_Service.json"
       Url="*ClientSettings_WebAPIURI*/"
     />
 
-    <!-- YOUR DATA SYSTEMS ENDPOINT GOES HERE -->
+
+    <!-- RESPONSE CODE SUPPORT -->
     <Request
-      TestDescription="Data System"
-      RequirementId="REQ-WA103-END2"
+      TestDescription="Assert 200 OK Request"
+      RequirementId="REQ-WA103-RC3"
       MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
-      OutputFile="REQ-WA103-END2_DataSystem.json"
-      Url=""
+      Capability="Core Support"
+      WebAPIReference="2.5.2"
+      OutputFile="REQ-WA103-RC05_200OKRequest.json"
+      Url="ClientSettings_WebAPIURI*/*Parameter_200_OK*"
+      AssertResponseCode="200"
     />
 
     <Request
-      TestDescription="Metadata Endpoint"
-      RequirementId="REQ-WA103-END3"
+      TestDescription="Assert 400 Bad Request"
+      RequirementId="REQ-WA103-RC5"
       MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
-      OutputFile="REQ-WA103-END3_Metadata.xml"
-      Url="ClientSettings_WebAPIURI*/*Parameter_EndpointMetadata*"
-    />
-
-    <!-- TODO: WHICH RequirementId from the spreadsheet DOES THIS BELONG TO? -->
-    <Request
-      TestDescription="Top N from Resource"
-      RequirementId="REQ-WA103-FullListing_NonTest"
-      MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
-      OutputFile="REQ-WA103-FullListing_NonTest.json"
-      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*"
-    />
-
-    <Request
-      TestDescription="Query support: $count"
-      RequirementId="REQ-WA103-QR6"
-      MetallicLevel="Core"
-      Capability="Query Support"
-      WebAPIReference=""
-      OutputFile="REQ-WA103-QR6_Count.json"
-      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$count=true"
-    />
-
-    <Request
-      TestDescription="400 Bad Request"
-      RequirementId="TODO: Fill in 400 Bad Request Test RequirementId"
-      MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
+      Capability="Core Support"
+      WebAPIReference="2.5.2"
       OutputFile="REQ-WA103-RC05_400BadRequest.json"
       Url="ClientSettings_WebAPIURI*/*Parameter_400BadRequest*"
+      AssertResponseCode="400"
     />
 
     <Request
-      TestDescription="403 Forbidden Request"
+      TestDescription="Assert 403 Forbidden Request"
       RequirementId="REQ-WA103-RC06"
       MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
+      Capability="Core Support"
+      WebAPIReference="2.5.2"
       OutputFile="REQ-WA103-RC06_403Forbidden_Generic.json"
       Url="ClientSettings_WebAPIURI*/*Parameter_403Forbidden*"
+      AssertResponseCode="403"
     />
 
     <Request
-      TestDescription="404 Not Found Request"
+      TestDescription="Assert 404 Not Found Request"
       RequirementId="REQ-WA103-RC07"
       MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
+      Capability="Core Support"
+      WebAPIReference="2.5.2"
       OutputFile="REQ-WA103-RC07_404NotFound.json"
       Url="*ClientSettings_WebAPIURI*/*Parameter_404NotFound*"
+      AssertResponseCode="404"
     />
 
     <Request
-      TestDescription="501 Not Implemented Request"
+      TestDescription="Assert 501 Not Implemented Request"
       RequirementId="REQ-WA103-RC11"
       MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
+      Capability="Core Support"
+      WebAPIReference="2.5.2"
       OutputFile="REQ-WA103-RC11_501NotImplemented.json"
-      Url="ClientSettings_WebAPIURI*/*Parameter_501NotImplemented*"
+      Url="*ClientSettings_WebAPIURI*/*Parameter_501NotImplemented*"
+      AssertResponseCode="501"
     />
 
-    <Request
-      TestDescription="contains() and tolower() functions"
-      RequirementId="REQ-WA103-QO16"
-      MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
-      OutputFile="REQ-WA103-QO16_ToLowerContain.json"
-      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=contains(tolower(*Parameter_ToLowerField*),'*Parameter_ToLowerValue*')*Parameter_RequiredParameters*"
-    />
-
-    <Requests
-      TestDescription="contains and toupper() functions"
-      RequirementId="REQ-WA103-QO17"
-      MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
-      OutputFile="REQ-WA103-QO17_ToUpperContain.json"
-      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=contains(toupper(*Parameter_ToUpperField*),'*Parameter_ToUpperValue*')*Parameter_RequiredParameters*"
-    />
-
-    <Request
-      TestDescription="OData int value intermediate conformance test"
-      RequirementId="REQ-WA103-ODATA-IntC1006"
-      MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
-      OutputFile="REQ-WA103-ODATA-IntC1006_Value.json"
-      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*(*Parameter_UniqueIDValue*)/*Parameter_ValueField*/$value"
-    />
-
-    <Request
-      TestDescription="Full Listing Test"
-      RequirementId="REQ-WA103-ODATA-SI-SQOFCA"
-      MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
-      OutputFile="REQ-WA103-ODATA-SI-SQOFCA_Cast.json"
-      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=cast(*Parameter_CastField*, '*Parameter_CastFieldType*') eq '*Parameter_CastFieldValue*'"
-    />
-
-    <Request
-      TestDescription="Full Listing Test"
-      RequirementId="REQ-WA103-ODATA-SI-SQOFCC"
-      MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
-      OutputFile="REQ-WA103-ODATA-SI-SQOFCC_Concat.json"
-      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=(concat(concat(*Parameter_ConcatFieldOne*, ' '), *Parameter_ConcatFieldTwo*) eq '*Parameter_ConcatFieldOneValue* *Parameter_ConcatFieldTwoValue*')"
-    />
-
-    <!-- Generic Web API Server Troubleshooting Queries not associated with specific tests -->
-    <Request
-      TestDescription="Well-known endpoint test"
-      RequirementId="REQ-WA103_WellKnownTest_Generic"
-      MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
-      OutputFile="REQ-WA103_WellKnownTest_Generic01.json"
-      Url="*ClientSettings_WebAPIURI*/.well-known/"
-    />
-
-    <Request
-      TestDescription="Well-known OpenId configuration endpoint"
-      RequirementId="REQ-WA103_WellKnownTest_OpenID"
-      MetallicLevel="Core"
-      Capability="Core"
-      WebAPIReference=""
-      OutputFile="REQ-WA103_WellKnownTest_OpenID01.json"
-      Url="*ClientSettings_WebAPIURI*/.well-known/openid-configuration"
-    />
   </Requests>
 </OutputScript>

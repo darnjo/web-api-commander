@@ -47,6 +47,12 @@ public class  Settings {
     return settings;
   }
 
+
+  static final String CLIENT_SETTING_PREFIX = "ClientSettings_";
+  static final String PARAMETER_PREFIX = "Parameter_";
+
+
+
   /**
    * Resolves the parameters in request with parameters.
    *
@@ -55,24 +61,39 @@ public class  Settings {
    * @return a copy of the request with the URL resolved.
    */
   public static Request resolveParameters(Request request, Settings settings) {
-    StringBuilder resolved = new StringBuilder();
-    String[] fragments = request.getUrl().split("\\*");
+    //calls to resolve nested parameters
+    return new Request(request.getRequirementId(), request.getOutputFile(), resolveParametersString(request.getUrl(), settings), request.getTestDescription(),
+        request.getMetallicLevel(), request.getCapability(), request.getWebApiReference(), request.getAssertResponseCode());
+  }
 
-    final String CLIENT_SETTING_PREFIX = "ClientSettings_";
-    final String PARAMETER_PREFIX = "Parameter_";
+  /**
+   * Resolves URIs containing special RESOScript parameters of the form *Parameter_X* and *ClientSettings_Y*
+   * @param parameterString the parameter string to resolve, possibly containing nested parameter settings
+   * @param settings the settings to use to resolve the parameters
+   * @return the resolved parameter string
+   */
+  private static String resolveParametersString(String parameterString, Settings settings) {
+    StringBuilder resolved = new StringBuilder();
+    String[] fragments = parameterString.split("\\*");
+    String val;
 
     for (String fragment : fragments) {
       if (fragment.contains(CLIENT_SETTING_PREFIX)) {
         resolved.append(settings.getClientSettings().get(fragment.replace(CLIENT_SETTING_PREFIX, "")));
       } else if (fragment.contains(PARAMETER_PREFIX)) {
-        resolved.append(settings.getParameters().getValue(fragment.replace(PARAMETER_PREFIX, "")));
+        val = settings.getParameters().getValue(fragment.replace(PARAMETER_PREFIX, ""));
+        if (val != null) {
+          if (val.contains(PARAMETER_PREFIX)) {
+            resolved.append(resolveParametersString(val, settings));
+          } else {
+            resolved.append(val);
+          }
+        }
       } else {
         resolved.append(fragment);
       }
     }
-    //TODO: need deep-copy for Request if they get more complicated
-    return new Request(request.getRequirementId(), request.getOutputFile(), resolved.toString(), request.getTestDescription(),
-        request.getMetallicLevel(), request.getCapability(), request.getWebApiReference(), request.getAssertResponseCode());
+    return resolved.toString();
   }
 
   /**

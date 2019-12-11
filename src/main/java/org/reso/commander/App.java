@@ -4,7 +4,6 @@ import org.apache.commons.cli.*;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
-import org.apache.olingo.client.api.http.HttpClientException;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.resoscript.*;
@@ -20,33 +19,29 @@ import static org.reso.commander.Commander.NOT_OK;
 
 /**
  * Entry point of the RESO Web API Commander, which is a command line OData client that uses the Java Olingo
- * Client Library to handle OData and the Apache CXF library to handle Auth. Currently, the following forms
+ * Client Library to handle OData. Currently, the following forms
  * of Auth are supported:
  * <p>
  * - Bearer Tokens
+ * - Client Credentials (in-progress)
  * <p>
  * Exposes several different actions for working with OData-based WebAPI servers.
  * This application is structured so that the App class is an OData WebAPI consumer
  * using the Commander class, which contains the actual methods for working with OData.
  * <p>
  * For usage, see README.
- * For documentation, see /docs
+ * For documentation, see /build/docs
  * <p>
  */
 public class App {
 
   private static final Logger LOG = LogManager.getLogger(App.class);
+
+  //use only one instance of the stats class per run
+  private static final Stats STATS = new Stats();
+
   private static final String DIVIDER = "==============================================================";
-
-  private static final class Stats {
-    int numRequests;
-    Date dateStart, dateEnd;
-
-    Stats() {
-      dateStart = new Date();
-    }
-
-  }
+  private static final String UNDERLINE = "===========================";
 
   public static void main(String[] params) {
     // create the command line parser
@@ -136,8 +131,6 @@ public class App {
       //If the RESOScript option was passed, then the correct commander instance should exist at this point
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
         int numRequests = settings.getRequests().size();
-        Stats stats = new Stats();
-        stats.numRequests = numRequests;
 
         LOG.info(DIVIDER);
         LOG.info("Web API Commander Starting... Press <ctrl+c> at any time to exit.");
@@ -154,15 +147,21 @@ public class App {
             .replace(".resoscript", "") + "-" + getTimestamp(new Date());
         String resolvedUrl = null;
 
-        Request request;
+        Request request = null;
+
+        //this is an integer so it can be nullable in cases where we don't care about the response code assertion
         Integer responseCode = null;
+
+        //start timer for entire run
+        STATS.startTimer();
+
         for (int i = 0; i < numRequests; i++) {
           try {
             request = settings.getRequests().get(i);
 
             //TODO: create dynamic JUnit (or similar) test runner
-            LOG.info("Test: #" + (i+1));
-            LOG.info("======================");
+            LOG.info("Test: #" + (i + 1));
+            LOG.info(UNDERLINE);
             LOG.info("Test Name: " + (request.getName() != null ? request.getName().replace(".json", "") : "Not Specified"));
 
             //TODO: function-ize the property test
@@ -175,27 +174,53 @@ public class App {
             resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
             LOG.info("Resolved URL: " + resolvedUrl);
 
+            STATS.startRequest(request);
+
             responseCode = commander.saveGetRequest(resolvedUrl,
-                  directoryName + path + File.separator + request.getOutputFile());
+                directoryName + path + File.separator + request.getOutputFile());
+
+          } catch (Exception ex) {
+            STATS.updateRequestStatus(request, RequestStatus.Status.FAILED, ex);
+            LOG.error("Exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
+            LOG.error("Stack trace:");
+            Arrays.stream(ex.getStackTrace()).forEach(stackTraceElement -> LOG.error(stackTraceElement.toString()));
+          } finally {
+            STATS.updateRequestStatus(request, RequestStatus.Status.SUCCEEDED);
 
             if (responseCode != null && request.getAssertResponseCode() != null) {
               if (responseCode == Integer.parseInt(request.getAssertResponseCode())) {
                 LOG.info("Assert Response Code " + request.getAssertResponseCode() + " passed!");
+              } else {
+                //the response was already marked as successful, so if the assert has failed,
+                //fall through to here and update the status
+                STATS.updateRequestStatus(request, RequestStatus.Status.FAILED);
               }
             }
-
             LOG.info("Request " + request.getRequirementId() + " complete!\n\n\n");
-          } catch (Exception ex) {
-            LOG.error("Exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
-            LOG.error("Stack trace:");
-            Arrays.stream(ex.getStackTrace()).forEach(stackTraceElement -> LOG.error(stackTraceElement.toString()));
           }
         }
+
+        //stop global timer
+        STATS.stopTimer();
 
         LOG.info(DIVIDER);
         LOG.info("RESOScript Complete!");
         LOG.info(DIVIDER + "\n\n");
+
+        LOG.info(DIVIDER);
+        LOG.info("Test Statistics");
+
+        LOG.info("Tests Run:          " + STATS.getRequestStatuses().size());
+        LOG.info("Tests Passed:       " + STATS.getRequestStatusCount(RequestStatus.Status.SUCCEEDED));
+        LOG.info("Tests Failed:       " + STATS.getRequestStatusCount(RequestStatus.Status.FAILED));
+        LOG.info("Tests Skipped:      " + STATS.getRequestStatusCount(RequestStatus.Status.SKIPPED));
+        LOG.info("Tests Incomplete:   " + STATS.getRequestStatusCount(RequestStatus.Status.STARTED));
+        LOG.info("Total Time Taken:   " + (STATS.getElapsedTimeMillis() / 1000.0) + "s" );
+        LOG.info("Average Time Taken: " + (STATS.getElapsedTimeMillis() / 1000.0) / STATS.totalRequestCount() + "s");
+        LOG.info(DIVIDER + "\n\n");
+
         System.exit(0); //terminate the program after the batch completes
+
       }
 
       /* otherwise, not a batch request...
