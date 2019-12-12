@@ -11,8 +11,7 @@ import org.reso.resoscript.*;
 import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Date;
+import java.util.*;
 import java.util.function.Function;
 
 import static org.reso.commander.Commander.NOT_OK;
@@ -162,7 +161,7 @@ public class App {
             //TODO: create dynamic JUnit (or similar) test runner
             LOG.info("Test: #" + (i + 1));
             LOG.info(UNDERLINE);
-            LOG.info("Test Name: " + (request.getName() != null ? request.getName().replace(".json", "") : "Not Specified"));
+            LOG.info("Test Name:" + (request.getName() != null ? request.getName().replace(".json", "") : "Not Specified"));
 
             //TODO: function-ize the property test
             LOG.info("Test Description: " + (request.getTestDescription().length() > 0 ? request.getTestDescription() : "Not Specified"));
@@ -170,14 +169,29 @@ public class App {
             LOG.info("Metallic Level: " + (request.getMetallicLevel().length() > 0 ? request.getMetallicLevel() : "Not Specified"));
             LOG.info("Capability: " + (request.getCapability().length() > 0 ? request.getCapability() : "Not Specified"));
             LOG.info("Web API Reference: " + (request.getWebApiReference().length() > 0 ? request.getWebApiReference() : "Not Specified"));
-
             resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
             LOG.info("Resolved URL: " + resolvedUrl);
 
             STATS.startRequest(request);
 
-            responseCode = commander.saveGetRequest(resolvedUrl,
-                directoryName + path + File.separator + request.getOutputFile());
+            if (resolvedUrl != null && resolvedUrl.length() > 0) {
+              responseCode = commander.saveGetRequest(resolvedUrl,
+                  directoryName + path + File.separator + request.getOutputFile());
+
+              STATS.updateRequestStatus(request, RequestStatus.Status.SUCCEEDED);
+
+              if (responseCode != null && request.getAssertResponseCode() != null) {
+                if (responseCode == Integer.parseInt(request.getAssertResponseCode())) {
+                  LOG.info("Assert Response Code " + request.getAssertResponseCode() + " passed!");
+                } else {
+                  //the response was already marked as successful, so if the assert has failed,
+                  //fall through to here and update the status
+                  STATS.updateRequestStatus(request, RequestStatus.Status.FAILED);
+                }
+              }
+            } else {
+              STATS.updateRequestStatus(request, RequestStatus.Status.SKIPPED);
+            }
 
           } catch (Exception ex) {
             STATS.updateRequestStatus(request, RequestStatus.Status.FAILED, ex);
@@ -185,18 +199,12 @@ public class App {
             LOG.error("Stack trace:");
             Arrays.stream(ex.getStackTrace()).forEach(stackTraceElement -> LOG.error(stackTraceElement.toString()));
           } finally {
-            STATS.updateRequestStatus(request, RequestStatus.Status.SUCCEEDED);
 
-            if (responseCode != null && request.getAssertResponseCode() != null) {
-              if (responseCode == Integer.parseInt(request.getAssertResponseCode())) {
-                LOG.info("Assert Response Code " + request.getAssertResponseCode() + " passed!");
-              } else {
-                //the response was already marked as successful, so if the assert has failed,
-                //fall through to here and update the status
-                STATS.updateRequestStatus(request, RequestStatus.Status.FAILED);
-              }
+            if (resolvedUrl != null && resolvedUrl.length() > 0) {
+              LOG.info("Elapsed Time: " + String.format("%.2f", (STATS.getRequestStatuses().get(request).getElapsedTimeMillis() / 1000.0)) + "s");
             }
-            LOG.info("Request " + request.getRequirementId() + " complete!\n\n\n");
+
+            LOG.info("Request " + request.getRequirementId() + " " + STATS.getRequestStatuses().get(request).getStatus().toString().toLowerCase() + "!\n\n\n");
           }
         }
 
@@ -207,20 +215,71 @@ public class App {
         LOG.info("RESOScript Complete!");
         LOG.info(DIVIDER + "\n\n");
 
-        LOG.info(DIVIDER);
         LOG.info("Test Statistics");
+        LOG.info(DIVIDER);
 
-        LOG.info("Tests Run:          " + STATS.getRequestStatuses().size());
-        LOG.info("Tests Passed:       " + STATS.getRequestStatusCount(RequestStatus.Status.SUCCEEDED));
-        LOG.info("Tests Failed:       " + STATS.getRequestStatusCount(RequestStatus.Status.FAILED));
-        LOG.info("Tests Skipped:      " + STATS.getRequestStatusCount(RequestStatus.Status.SKIPPED));
-        LOG.info("Tests Incomplete:   " + STATS.getRequestStatusCount(RequestStatus.Status.STARTED));
-        LOG.info("Total Time Taken:   " + (STATS.getElapsedTimeMillis() / 1000.0) + "s" );
-        LOG.info("Average Time Taken: " + (STATS.getElapsedTimeMillis() / 1000.0) / STATS.totalRequestCount() + "s");
-        LOG.info(DIVIDER + "\n\n");
+        int numSucceeded, numFailed, numSkipped, numIncomplete, totalRequestCount;
+        totalRequestCount = STATS.totalRequestCount();
+        numSucceeded =  STATS.getRequestStatusCount(RequestStatus.Status.SUCCEEDED);
+        numFailed = STATS.getRequestStatusCount(RequestStatus.Status.FAILED);
+        numSkipped = STATS.getRequestStatusCount(RequestStatus.Status.SKIPPED);
+        numIncomplete = STATS.getRequestStatusCount(RequestStatus.Status.STARTED);
+
+        LOG.info("Tests Run: " + STATS.getRequestStatuses().size());
+        LOG.info("\tSucceeded:   " + numSucceeded + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
+        LOG.info("\tFailed:      " + numFailed + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
+        LOG.info("\tSkipped:     " + numSkipped + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
+        LOG.info("\tIncomplete:  " + numIncomplete + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : ""));
+        LOG.info("Total Time Taken:   " + String.format("%.2f", (STATS.getElapsedTimeMillis() / 1000.0)) + "s" );
+        LOG.info("Average Time Taken: " + String.format("%.2f", (STATS.getElapsedTimeMillis() / 1000.0) / STATS.totalRequestCount()) + "s");
+        LOG.info(DIVIDER + "\n");
+
+        Set<String> metallicLevels = new HashSet<>();
+        Set<String> capabilityNames = new HashSet<>();
+        for(RequestStatus requestStatus : STATS.getRequestStatuses().values()) {
+          metallicLevels.add(requestStatus.getRequest().getMetallicLevel());
+          capabilityNames.add(requestStatus.getRequest().getCapability());
+        }
+
+        // Generate Metallic Certification Report
+        LOG.info("Metallic Certification Report");
+        LOG.info(DIVIDER);
+        for (String metallicKey : metallicLevels) {
+          totalRequestCount = STATS.filterByMetallicCertification(metallicKey).size();
+          numSucceeded = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(RequestStatus.Status.SUCCEEDED)).size();
+          numFailed = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(RequestStatus.Status.FAILED)).size();
+          numSkipped = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(RequestStatus.Status.SKIPPED)).size();
+          numIncomplete = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(RequestStatus.Status.STARTED)).size();
+
+          LOG.info(metallicKey + " Total: " + totalRequestCount);
+          LOG.info("\tSucceeded:   " + numSucceeded + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tFailed:      " + numFailed + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tSkipped:     " + numSkipped + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tIncomplete:  " + numIncomplete + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : ""));
+        }
+        LOG.info(DIVIDER + "\n");
+
+        // Generate Capabilities Report
+        LOG.info("Capabilities Certification Report");
+        LOG.info(DIVIDER);
+        for (String capabilityKey : capabilityNames) {
+          totalRequestCount = STATS.filterByCapability(capabilityKey).size();
+          numSucceeded = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(RequestStatus.Status.SUCCEEDED)).size();
+          numFailed = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(RequestStatus.Status.FAILED)).size();
+          numSkipped = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(RequestStatus.Status.SKIPPED)).size();
+          numIncomplete = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(RequestStatus.Status.STARTED)).size();
+
+          LOG.info(capabilityKey + " Total: " + totalRequestCount);
+          LOG.info("\tSucceeded:   " + numSucceeded + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tFailed:      " + numFailed + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tSkipped:     " + numSkipped + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tIncomplete:  " + numIncomplete + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : ""));
+        }
+        LOG.info(DIVIDER + "\n");
+
+        LOG.info("Job Complete...Exiting!\n\n");
 
         System.exit(0); //terminate the program after the batch completes
-
       }
 
       /* otherwise, not a batch request...

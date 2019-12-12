@@ -55,14 +55,14 @@
     <!-- MISC PARAMETERS  -->
 
     <!-- REQUIRED: OData $select list - adapt this for your system and then adjust the remaining queries accordingly -->
-    <Parameter Name="SelectList" Value="ListingKey,BedroomsTotal,StreetName,ListingContractDate,PropertyType,ModificationTimestamp" />
+    <Parameter Name="SelectList" Value="ListingKey,BedroomsTotal,StreetName,PropertyType,ModificationTimestamp" />
 
     <!-- REQUIRED: Substitute key name from your EndpointMetadata here, either ListingKey or ListingKeyNumeric,
     which requires rewriting some of the queries that follow... -->
     <Parameter Name="UniqueID" Value="ListingKey" />
 
     <!-- REQUIRED: Provide a value for the UniqueID from your server -->
-    <Parameter Name="UniqueIDValue" Value="YOUR UniqueIDValue GOES HERE" />
+    <Parameter Name="UniqueIDValue" Value="REQUIRED: YOUR UniqueIDValue GOES HERE" />
 
     <!-- For Top, Skip, and Sort Testing -->
     <Parameter Name="TopCount" Value="5" />
@@ -114,10 +114,10 @@
     <Parameter Name="ToUpperValue" Value="MAIN" />
 
     <!-- REQUIRED: Date Fields for testing -->
-    <Parameter Name="DateField" Value="ListingContractDate" />
+    <Parameter Name="DateField" Value="ModificationTimestamp" />
     <Parameter Name="DateTimeValue" Value="2018-12-31T23:55:55-09:00" />
     <Parameter Name="DateValue" Value="2018-12-31" />
-    <Parameter Name="YearValue" Value="2018" />
+    <Parameter Name="YearValue" Value="2018" / >
     <Parameter Name="MonthValue" Value="12" />
     <Parameter Name="DayValue" Value="31" />
     <Parameter Name="TimestampField" Value="ModificationTimestamp" />
