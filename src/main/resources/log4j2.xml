@@ -2,7 +2,7 @@
 <Configuration>
     <Properties>
         <Property name="PATTERN">[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%level] [%c{1}] - %msg%n</Property>
-        <Property name="SIMPLE_PATTERN">[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%level] - %msg%n</Property>
+        <Property name="SIMPLE_PATTERN">%msg%n</Property>
         <Property name="LOGFILE_NAME">./commander.log</Property>
     </Properties>
     <Appenders>

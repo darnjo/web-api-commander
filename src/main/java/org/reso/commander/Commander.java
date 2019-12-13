@@ -18,7 +18,6 @@ import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.auth.OAuth2HttpClientFactory;
 import org.reso.auth.TokenHttpClientFactory;
-import org.reso.resoscript.Request;
 import org.xml.sax.*;
 
 import javax.xml.parsers.SAXParser;
@@ -50,7 +49,9 @@ public class Commander {
 
   private static final Logger LOG = LogManager.getLogger(Commander.class);
 
-  public final static int NOT_OK = 1;
+  //TODO move to utils class
+  public static final int OK = 0;
+  public static final int NOT_OK = 1;
 
   /**
    * Builder pattern for creating Commander instances.
@@ -160,7 +161,7 @@ public class Commander {
     try {
       LOG.info("Fetching Metadata from " + serviceRoot + "...");
       metadata = client.getRetrieveRequestFactory().getMetadataRequest(serviceRoot).execute().getBody();
-      LOG.info("Transfer complete! Bytes received: " + metadata.toString().getBytes().length);
+      LOG.info("Transfer complete! KBytes received: " + (metadata.toString().getBytes().length / 1024));
     } catch (ODataClientErrorException cex) {
       LOG.error(cex.getStackTrace());
     }

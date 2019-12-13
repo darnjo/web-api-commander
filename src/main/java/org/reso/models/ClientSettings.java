@@ -1,4 +1,4 @@
-package org.reso.resoscript;
+package org.reso.models;
 
 import org.reso.commander.Commander;
 import org.w3c.dom.Document;

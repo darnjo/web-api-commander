@@ -1,4 +1,4 @@
-package org.reso.resoscript;
+package org.reso.models;
 
 import java.io.File;
 import java.util.ArrayList;

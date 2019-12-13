@@ -1,6 +1,6 @@
 package org.reso.commander;
 
-import org.reso.resoscript.Request;
+import org.reso.models.Request;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -10,67 +10,67 @@ import java.util.stream.Collectors;
  */
 public class Stats {
   Date startDate, endDate;
-  private HashMap<Request, RequestStatus> requestStatuses = new HashMap<>();
+  private Map<Request, Request> requests = new HashMap<>();
 
   public Stats () { /* */ }
 
   public void startRequest(Request request) {
     if (request != null) {
-      requestStatuses.put(request, new RequestStatus(request, RequestStatus.Status.STARTED).startTimer());
+      requests.put(request, request.setStatus(Request.Status.STARTED).startTimer());
     }
   }
 
-  public void updateRequestStatus(Request request, RequestStatus.Status status) {
-    // only affects existing requestStatuses, use startRequest to register a RequestStatus
-    requestStatuses.get(request).stopTimer().setStatus(status);
+  public void updateRequest(Request request, Request.Status status) {
+    // only affects existing requestStatuses, use startRequest to register a Request
+    requests.get(request).stopTimer().setStatus(status);
   }
 
-  public void updateRequestStatus(Request request, RequestStatus.Status status, Exception ex) {
-    requestStatuses.get(request).setFailedRequestException(ex);
-    updateRequestStatus(request, status);
+  public void updateRequest(Request request, Request.Status status, Exception ex) {
+    requests.get(request).setFailedRequestException(ex);
+    updateRequest(request, status);
+  }
+
+  public Map<Request, Request> getRequests() {
+    return requests;
   }
 
   public int totalRequestCount() {
-    return getRequestStatuses().size();
+    return requests.size();
   }
 
-  public int getRequestStatusCount(RequestStatus.Status status) {
-    return filterByStatus(status, getRequestStatuses().values()).size();
+  public int getRequestCount(Request.Status status) {
+    return filterByStatus(status, requests.values()).size();
   }
 
-  public Collection<RequestStatus> filterByStatus(RequestStatus.Status status) {
-    return filterByStatus(status, getRequestStatuses().values());
+  public Collection<Request> filterByStatus(Request.Status status) {
+    return filterByStatus(status, requests.values());
   }
 
-  public Collection<RequestStatus> filterByStatus(RequestStatus.Status status, Collection<RequestStatus> collection) {
+  public Collection<Request> filterByStatus(Request.Status status, Collection<Request> collection) {
     return collection.stream()
         .filter(requestStatus -> requestStatus.getStatus().compareTo(status) == 0).collect(Collectors.toList());
   }
 
-  public Collection<RequestStatus> filterByMetallicCertification(String metallicName) {
-    return filterByMetallicCertification(metallicName, getRequestStatuses().values());
+  public Collection<Request> filterByMetallicCertification(String metallicName) {
+    return filterByMetallicCertification(metallicName, requests.values());
   }
 
-  public Collection<RequestStatus> filterByMetallicCertification(String metallicName, Collection<RequestStatus> collection) {
+  public Collection<Request> filterByMetallicCertification(String metallicName, Collection<Request> collection) {
     return collection.stream()
-        .filter(requestStatus -> requestStatus.getRequest().getMetallicLevel().compareTo(metallicName) == 0).collect(Collectors.toList());
+        .filter(request -> request.getMetallicLevel().compareTo(metallicName) == 0).collect(Collectors.toList());
   }
 
-  public Collection<RequestStatus> filterByCapability(String capabilityName) {
-    return filterByCapability(capabilityName, getRequestStatuses().values());
+  public Collection<Request> filterByCapability(String capabilityName) {
+    return filterByCapability(capabilityName, requests.values());
   }
 
-  public Collection<RequestStatus> filterByCapability(String capabilityName, Collection<RequestStatus> collection) {
+  public Collection<Request> filterByCapability(String capabilityName, Collection<Request> collection) {
     return collection.stream()
-        .filter(requestStatus -> requestStatus.getRequest().getCapability().compareTo(capabilityName) == 0).collect(Collectors.toList());
+        .filter(request -> request.getCapability().compareTo(capabilityName) == 0).collect(Collectors.toList());
   }
 
   public HashMap<String, Integer> metallicStats;
   public HashMap<String, Integer> capabilitiesStats;
-
-  public HashMap<Request, RequestStatus> getRequestStatuses() {
-    return requestStatuses;
-  }
 
   public void startTimer() {
     startDate = new Date();

@@ -1,4 +1,4 @@
-package org.reso.resoscript;
+package org.reso.models;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -26,6 +26,13 @@ public class Request {
     private String webApiReference;
     private String assertResponseCode;
 
+    private Request request;
+    private Status status;
+    private Date startDate, endDate;
+    private String responseCode;
+    private Exception failedRequestException;
+
+
     /**
      * Public constructor requires both outputFile and url. Remaining Request properties
      * may be set individually after Request has been instantiated.
@@ -36,6 +43,7 @@ public class Request {
     public Request(String requirementId, String outputFile, String url, String testDescription, String metallicLevel,
                    String capability, String webApiReference, String assertResponseCode) {
 
+        //TODO: add Builder
         setRequirementId(requirementId);
         setOutputFile(outputFile);
         setUrl(url);
@@ -44,6 +52,46 @@ public class Request {
         setCapability(capability);
         setWebApiReference(webApiReference);
         setAssertResponseCode(assertResponseCode);
+    }
+
+
+    public Status getStatus() {
+        return status;
+    }
+
+    public Request setStatus(Status status) {
+        this.status = status;
+        return this;
+    }
+
+    public Request startTimer() {
+        startDate = new Date();
+        return this;
+    }
+
+    public Request stopTimer() {
+        endDate = new Date();
+        return this;
+    }
+
+    public long getElapsedTimeMillis() {
+        return endDate.getTime() - startDate.getTime();
+    }
+
+    public void setFailedRequestException(Exception failedRequestException) {
+        this.failedRequestException = failedRequestException;
+    }
+
+    public String getResponseCode() {
+        return responseCode;
+    }
+
+    public void setResponseCode(String responseCode) {
+        this.responseCode = responseCode;
+    }
+
+    public enum Status {
+        STARTED, SUCCEEDED, FAILED, SKIPPED
     }
 
     /**

@@ -6,7 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
-import org.reso.resoscript.*;
+import org.reso.models.*;
 
 import java.io.File;
 import java.text.DateFormat;
@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.function.Function;
 
 import static org.reso.commander.Commander.NOT_OK;
+import static org.reso.commander.Commander.OK;
 
 /**
  * Entry point of the RESO Web API Commander, which is a command line OData client that uses the Java Olingo
@@ -40,7 +41,10 @@ public class App {
   private static final Stats STATS = new Stats();
 
   private static final String DIVIDER = "==============================================================";
-  private static final String UNDERLINE = "===========================";
+  private static final String SMALL_DIVIDER = "===========================";
+  private static final String RESOSCRIPT_EXTENSION = ".resoscript";
+  private static final String EDMX_EXTENSION = ".xml";
+  private static final String OUTPUT_DIR = "user.dir";
 
   public static void main(String[] params) {
     // create the command line parser
@@ -140,16 +144,18 @@ public class App {
         LOG.info(DIVIDER + "\n\n");
 
         //put in local directory rather than relative to where the input file is
-        String directoryName = System.getProperty("user.dir"),
+        String directoryName = System.getProperty(OUTPUT_DIR),
             path = inputFilename
             .substring(inputFilename.lastIndexOf(File.separator), inputFilename.length())
-            .replace(".resoscript", "") + "-" + getTimestamp(new Date());
+            .replace(RESOSCRIPT_EXTENSION, "") + "-" + getTimestamp(new Date());
         String resolvedUrl = null;
 
         Request request = null;
 
         //this is an integer so it can be nullable in cases where we don't care about the response code assertion
         Integer responseCode = null;
+
+        String outputFilePath;
 
         //start timer for entire run
         STATS.startTimer();
@@ -159,52 +165,64 @@ public class App {
             request = settings.getRequests().get(i);
 
             //TODO: create dynamic JUnit (or similar) test runner
+            LOG.info(SMALL_DIVIDER);
             LOG.info("Test: #" + (i + 1));
-            LOG.info(UNDERLINE);
-            LOG.info("Test Name:" + (request.getName() != null ? request.getName().replace(".json", "") : "Not Specified"));
+            LOG.info(SMALL_DIVIDER);
+            LOG.info("Test Name:         " + request.getName());
 
             //TODO: function-ize the property test
-            LOG.info("Test Description: " + (request.getTestDescription().length() > 0 ? request.getTestDescription() : "Not Specified"));
-            LOG.info("Requirement Id: " + (request.getRequirementId().length() > 0 ? request.getRequirementId() : "Not Specified"));
-            LOG.info("Metallic Level: " + (request.getMetallicLevel().length() > 0 ? request.getMetallicLevel() : "Not Specified"));
-            LOG.info("Capability: " + (request.getCapability().length() > 0 ? request.getCapability() : "Not Specified"));
+            LOG.info("Test Description:  " + (request.getTestDescription().length() > 0 ? request.getTestDescription() : "Not Specified"));
+            LOG.info("Requirement Id:    " + (request.getRequirementId().length() > 0 ? request.getRequirementId() : "Not Specified"));
+            LOG.info("Metallic Level:    " + (request.getMetallicLevel().length() > 0 ? request.getMetallicLevel() : "Not Specified"));
+            LOG.info("Capability:        " + (request.getCapability().length() > 0 ? request.getCapability() : "Not Specified"));
             LOG.info("Web API Reference: " + (request.getWebApiReference().length() > 0 ? request.getWebApiReference() : "Not Specified"));
+
             resolvedUrl = Settings.resolveParameters(request, settings).getUrl();
-            LOG.info("Resolved URL: " + resolvedUrl);
+            LOG.info("Resolved URL:      " + resolvedUrl);
 
             STATS.startRequest(request);
 
+            //only run tests if they have URLs that resolve
             if (resolvedUrl != null && resolvedUrl.length() > 0) {
-              responseCode = commander.saveGetRequest(resolvedUrl,
-                  directoryName + path + File.separator + request.getOutputFile());
 
-              STATS.updateRequestStatus(request, RequestStatus.Status.SUCCEEDED);
+              outputFilePath = directoryName + path + File.separator + request.getOutputFile();
 
-              if (responseCode != null && request.getAssertResponseCode() != null) {
+              //get the response code from the request
+              responseCode = commander.saveGetRequest(resolvedUrl, outputFilePath);
+
+              STATS.updateRequest(request, Request.Status.SUCCEEDED);
+
+              if (request.getOutputFile().toLowerCase().contains(EDMX_EXTENSION.toLowerCase())) {
+                if (!validateMetadata(commander, outputFilePath)) {
+                  LOG.error("Error: Invalid metadata retrieved. Cannot continue!!");
+                  System.exit(NOT_OK);
+                }
+              } else if (responseCode != null && request.getAssertResponseCode() != null) {
                 if (responseCode == Integer.parseInt(request.getAssertResponseCode())) {
                   LOG.info("Assert Response Code " + request.getAssertResponseCode() + " passed!");
                 } else {
                   //the response was already marked as successful, so if the assert has failed,
                   //fall through to here and update the status
-                  STATS.updateRequestStatus(request, RequestStatus.Status.FAILED);
+                  STATS.updateRequest(request, Request.Status.FAILED);
                 }
               }
             } else {
-              STATS.updateRequestStatus(request, RequestStatus.Status.SKIPPED);
+              STATS.updateRequest(request, Request.Status.SKIPPED);
             }
 
           } catch (Exception ex) {
-            STATS.updateRequestStatus(request, RequestStatus.Status.FAILED, ex);
+            STATS.updateRequest(request, Request.Status.FAILED, ex);
             LOG.error("Exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
             LOG.error("Stack trace:");
             Arrays.stream(ex.getStackTrace()).forEach(stackTraceElement -> LOG.error(stackTraceElement.toString()));
           } finally {
+            LOG.info("Request " + STATS.getRequests().get(request).getStatus().toString().toLowerCase() + "!");
 
             if (resolvedUrl != null && resolvedUrl.length() > 0) {
-              LOG.info("Elapsed Time: " + String.format("%.2f", (STATS.getRequestStatuses().get(request).getElapsedTimeMillis() / 1000.0)) + "s");
+              LOG.info("Elapsed Time: " + String.format("%.2f", (STATS.getRequests().get(request).getElapsedTimeMillis() / 1000.0)) + "s");
             }
 
-            LOG.info("Request " + request.getRequirementId() + " " + STATS.getRequestStatuses().get(request).getStatus().toString().toLowerCase() + "!\n\n\n");
+            LOG.info("\n\n");
           }
         }
 
@@ -215,30 +233,30 @@ public class App {
         LOG.info("RESOScript Complete!");
         LOG.info(DIVIDER + "\n\n");
 
+        int numSucceeded, numFailed, numSkipped, numIncomplete, totalRequestCount;
+        totalRequestCount = STATS.totalRequestCount();
+        numSucceeded =  STATS.getRequestCount(Request.Status.SUCCEEDED);
+        numFailed = STATS.getRequestCount(Request.Status.FAILED);
+        numSkipped = STATS.getRequestCount(Request.Status.SKIPPED);
+        numIncomplete = STATS.getRequestCount(Request.Status.STARTED);
+
         LOG.info("Test Statistics");
         LOG.info(DIVIDER);
 
-        int numSucceeded, numFailed, numSkipped, numIncomplete, totalRequestCount;
-        totalRequestCount = STATS.totalRequestCount();
-        numSucceeded =  STATS.getRequestStatusCount(RequestStatus.Status.SUCCEEDED);
-        numFailed = STATS.getRequestStatusCount(RequestStatus.Status.FAILED);
-        numSkipped = STATS.getRequestStatusCount(RequestStatus.Status.SKIPPED);
-        numIncomplete = STATS.getRequestStatusCount(RequestStatus.Status.STARTED);
-
-        LOG.info("Tests Run: " + STATS.getRequestStatuses().size());
-        LOG.info("\tSucceeded:   " + numSucceeded + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
-        LOG.info("\tFailed:      " + numFailed + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
-        LOG.info("\tSkipped:     " + numSkipped + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
-        LOG.info("\tIncomplete:  " + numIncomplete + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : ""));
+        LOG.info("\tTotal:            " + String.format("%1$4s", STATS.getRequests().size()));
+        LOG.info("\tSucceeded:        " + String.format("%1$4s", numSucceeded) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
+        LOG.info("\tFailed:           " + String.format("%1$4s", numFailed) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
+        LOG.info("\tSkipped:          " + String.format("%1$4s", numSkipped) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
+        LOG.info("\tIncomplete:       " + String.format("%1$4s", numIncomplete) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : ""));
         LOG.info("Total Time Taken:   " + String.format("%.2f", (STATS.getElapsedTimeMillis() / 1000.0)) + "s" );
         LOG.info("Average Time Taken: " + String.format("%.2f", (STATS.getElapsedTimeMillis() / 1000.0) / STATS.totalRequestCount()) + "s");
         LOG.info(DIVIDER + "\n");
 
         Set<String> metallicLevels = new HashSet<>();
         Set<String> capabilityNames = new HashSet<>();
-        for(RequestStatus requestStatus : STATS.getRequestStatuses().values()) {
-          metallicLevels.add(requestStatus.getRequest().getMetallicLevel());
-          capabilityNames.add(requestStatus.getRequest().getCapability());
+        for(Request req : STATS.getRequests().values()) {
+          metallicLevels.add(req.getMetallicLevel());
+          capabilityNames.add(req.getCapability());
         }
 
         // Generate Metallic Certification Report
@@ -246,16 +264,17 @@ public class App {
         LOG.info(DIVIDER);
         for (String metallicKey : metallicLevels) {
           totalRequestCount = STATS.filterByMetallicCertification(metallicKey).size();
-          numSucceeded = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(RequestStatus.Status.SUCCEEDED)).size();
-          numFailed = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(RequestStatus.Status.FAILED)).size();
-          numSkipped = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(RequestStatus.Status.SKIPPED)).size();
-          numIncomplete = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(RequestStatus.Status.STARTED)).size();
+          numSucceeded = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(Request.Status.SUCCEEDED)).size();
+          numFailed = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(Request.Status.FAILED)).size();
+          numSkipped = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(Request.Status.SKIPPED)).size();
+          numIncomplete = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(Request.Status.STARTED)).size();
 
-          LOG.info(metallicKey + " Total: " + totalRequestCount);
-          LOG.info("\tSucceeded:   " + numSucceeded + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tFailed:      " + numFailed + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tSkipped:     " + numSkipped + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tIncomplete:  " + numIncomplete + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : ""));
+          LOG.info(metallicKey + (numSucceeded == totalRequestCount ? " - PASSED!" : ""));
+          LOG.info("\tTotal:            " + String.format("%1$4s", totalRequestCount) + " (" + String.format("%.2f", (100.0 * totalRequestCount) / STATS.totalRequestCount()) + "% of " + STATS.totalRequestCount() + ")");
+          LOG.info("\tSucceeded:        " + String.format("%1$4s", numSucceeded) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tFailed:           " + String.format("%1$4s", numFailed) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tSkipped:          " + String.format("%1$4s", numSkipped) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tIncomplete:       " + String.format("%1$4s", numIncomplete) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : "") + "\n");
         }
         LOG.info(DIVIDER + "\n");
 
@@ -264,16 +283,16 @@ public class App {
         LOG.info(DIVIDER);
         for (String capabilityKey : capabilityNames) {
           totalRequestCount = STATS.filterByCapability(capabilityKey).size();
-          numSucceeded = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(RequestStatus.Status.SUCCEEDED)).size();
-          numFailed = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(RequestStatus.Status.FAILED)).size();
-          numSkipped = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(RequestStatus.Status.SKIPPED)).size();
-          numIncomplete = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(RequestStatus.Status.STARTED)).size();
+          numSucceeded = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(Request.Status.SUCCEEDED)).size();
+          numFailed = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(Request.Status.FAILED)).size();
+          numSkipped = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(Request.Status.SKIPPED)).size();
+          numIncomplete = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(Request.Status.STARTED)).size();
 
-          LOG.info(capabilityKey + " Total: " + totalRequestCount);
-          LOG.info("\tSucceeded:   " + numSucceeded + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tFailed:      " + numFailed + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tSkipped:     " + numSkipped + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tIncomplete:  " + numIncomplete + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : ""));
+          LOG.info(capabilityKey + (numSucceeded == totalRequestCount ? " - PASSED!" : ""));
+          LOG.info("\tTotal:            " + String.format("%1$4s", totalRequestCount) + " (" + String.format("%.2f", (100.0 * totalRequestCount) / STATS.totalRequestCount()) + "% of " + STATS.totalRequestCount() + ")");          LOG.info("\tSucceeded:        " + String.format("%1$4s", numSucceeded) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tFailed:           " + String.format("%1$4s", numFailed) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tSkipped:          " + String.format("%1$4s", numSkipped) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tIncomplete:       " + String.format("%1$4s", numIncomplete) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : ""));
         }
         LOG.info(DIVIDER + "\n");
 
@@ -293,29 +312,11 @@ public class App {
         LOG.info("\nThe metadata contains the following items:");
         prettyPrint(metadata);
 
-        LOG.info("\nChecking Metadata for validity...");
-        if (commander.validateMetadata(outputFile)) {
-          LOG.info("==> Valid Metadata!");
-        } else {
-          LOG.error("==> Invalid Metadata!");
-          System.exit(NOT_OK);
-        }
-
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.VALIDATE_METADATA)) {
-        commander = new Commander.Builder().build();
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.VALIDATE_METADATA);
 
-        /**
-         * Validates the metadata in inputFilename in three ways:
-         *    - de-serializes it into a native Edm object, which will fail if given metadata isn't valid
-         *    - verifies whether the given EDMX file is a valid service document
-         *    - verifies whether the given EDMX file is in version 4 format
-         */
-        if (commander.validateMetadata(inputFilename)) {
-          LOG.info("Valid Metadata!");
-        } else {
-          LOG.error("ERROR: Invalid Metadata!\n");
-        }
+        System.exit(validateMetadata(commander, inputFilename) ? OK : NOT_OK);
+
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.GET_ENTITIES)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_ENTITIES);
 
@@ -360,6 +361,32 @@ public class App {
     } catch (ParseException exp) {
       LOG.error("\nERROR: Parse Exception, Commander cannot continue! " + exp.getMessage());
       System.exit(NOT_OK);
+    }
+  }
+
+  private static boolean validateMetadata(Commander commander, String inputFilename) {
+
+    if (commander == null) {
+      LOG.error("Null instance of Commander passed to validateMetadata. Cannot continue...");
+      return false;
+    }
+
+    /**
+     * Validates the metadata in inputFilename in the following ways:
+     *    - de-serializes it into a native Edm object, which will fail if given metadata isn't valid
+     *    - verifies whether the given EDMX file is a valid service document
+     *    - verifies whether the given EDMX file is in version 4 format
+     *    - calls the Olingo library's metadata validation method.
+     *
+     *    See Commander#validateMetadata for more info.
+     */
+    LOG.info("Checking Metadata for validity...");
+    if (commander.validateMetadata(inputFilename)) {
+      LOG.info("Valid Metadata!");
+      return true;
+    } else {
+      LOG.error("Invalid Metadata!");
+      return false;
     }
   }
 
