@@ -229,6 +229,30 @@ public class Commander {
   }
 
   /**
+   * Validates the given metadata contained in the given file path.
+   *
+   * @param pathToEdmx the path to look for metadata in. Assumes metadata is stored as XML.
+   * @return true if the metadata is valid and false otherwise.
+   */
+  public boolean validateMetadata(String pathToEdmx) {
+    boolean isValid = false;
+    try {
+      if (validateXML(pathToEdmx)) {
+        // deserialize metadata from given file
+        XMLMetadata metadata =
+            client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(new FileInputStream(pathToEdmx));
+
+        isValid = validateMetadata(metadata);
+      }
+
+    } catch (Exception ex) {
+      LOG.error("Error occurred while validating metadata.\nPath was:" + pathToEdmx);
+      LOG.error(ex.getMessage());
+    }
+    return isValid;
+  }
+
+  /**
    * Uses XML parser (SAX) to validate the given filename.
    * @param filename the filename containing the XML to validate.
    * @return true if the XML could be parsed, false otherwise.
@@ -265,30 +289,6 @@ public class Commander {
     public void fatalError(SAXParseException e) throws SAXException {
       System.out.println(e.getMessage());
     }
-  }
-
-  /**
-   * Validates the given metadata contained in the given file path.
-   *
-   * @param pathToEdmx the path to look for metadata in. Assumes metadata is stored as XML.
-   * @return true if the metadata is valid and false otherwise.
-   */
-  public boolean validateMetadata(String pathToEdmx) {
-    boolean isValid = false;
-    try {
-      if (validateXML(pathToEdmx)) {
-        // deserialize metadata from given file
-        XMLMetadata metadata =
-            client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(new FileInputStream(pathToEdmx));
-
-        isValid = validateMetadata(metadata);
-      }
-
-    } catch (Exception ex) {
-      LOG.error("Error occurred while validating metadata.\nPath was:" + pathToEdmx);
-      LOG.error(ex.getMessage());
-    }
-    return isValid;
   }
 
   /**

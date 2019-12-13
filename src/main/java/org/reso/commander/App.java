@@ -289,7 +289,8 @@ public class App {
           numIncomplete = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(Request.Status.STARTED)).size();
 
           LOG.info(capabilityKey + (numSucceeded == totalRequestCount ? " - PASSED!" : ""));
-          LOG.info("\tTotal:            " + String.format("%1$4s", totalRequestCount) + " (" + String.format("%.2f", (100.0 * totalRequestCount) / STATS.totalRequestCount()) + "% of " + STATS.totalRequestCount() + ")");          LOG.info("\tSucceeded:        " + String.format("%1$4s", numSucceeded) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
+          LOG.info("\tTotal:            " + String.format("%1$4s", totalRequestCount) + " (" + String.format("%.2f", (100.0 * totalRequestCount) / STATS.totalRequestCount()) + "% of " + STATS.totalRequestCount() + ")");
+          LOG.info("\tSucceeded:        " + String.format("%1$4s", numSucceeded) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
           LOG.info("\tFailed:           " + String.format("%1$4s", numFailed) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
           LOG.info("\tSkipped:          " + String.format("%1$4s", numSkipped) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
           LOG.info("\tIncomplete:       " + String.format("%1$4s", numIncomplete) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : ""));
