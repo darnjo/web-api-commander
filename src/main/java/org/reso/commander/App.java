@@ -9,6 +9,7 @@ import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.models.*;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -85,15 +86,9 @@ public class App {
       //if we're running a batch, initialize variables from the settings file rather than from command line options
       Settings settings = null;
       if (cmd.hasOption(APP_OPTIONS.ACTIONS.RUN_RESOSCRIPT)) {
+
         LOG.debug("Loading RESOScript: " + inputFilename);
         settings = Settings.loadFromRESOScript(new File(inputFilename));
-
-        if (settings == null) {
-          LOG.error("RESOScript option was specified but Settings could not be loaded.");
-          LOG.error("Input File: " + inputFilename);
-          System.exit(NOT_OK);
-        }
-
         LOG.debug("RESOScript loaded successfully!");
 
         serviceRoot = settings.getClientSettings().get(ClientSettings.WEB_API_URI);
@@ -145,9 +140,10 @@ public class App {
 
         //put in local directory rather than relative to where the input file is
         String directoryName = System.getProperty(OUTPUT_DIR),
-            path = inputFilename
+            outputPath = inputFilename
             .substring(inputFilename.lastIndexOf(File.separator), inputFilename.length())
             .replace(RESOSCRIPT_EXTENSION, "") + "-" + getTimestamp(new Date());
+
         String resolvedUrl = null;
 
         Request request = null;
@@ -185,7 +181,7 @@ public class App {
             //only run tests if they have URLs that resolve
             if (resolvedUrl != null && resolvedUrl.length() > 0) {
 
-              outputFilePath = directoryName + path + File.separator + request.getOutputFile();
+              outputFilePath = directoryName + outputPath + File.separator + request.getOutputFile();
 
               //get the response code from the request
               responseCode = commander.saveGetRequest(resolvedUrl, outputFilePath);
@@ -193,7 +189,9 @@ public class App {
               STATS.updateRequest(request, Request.Status.SUCCEEDED);
 
               if (request.getOutputFile().toLowerCase().contains(EDMX_EXTENSION.toLowerCase())) {
-                if (!validateMetadata(commander, outputFilePath)) {
+                if (validateMetadata(commander, outputFilePath)) {
+                  metadata = commander.getMetadata(outputFilePath);
+                } else {
                   LOG.error("Error: Invalid metadata retrieved. Cannot continue!!");
                   System.exit(NOT_OK);
                 }
@@ -209,21 +207,22 @@ public class App {
             } else {
               STATS.updateRequest(request, Request.Status.SKIPPED);
             }
-
           } catch (Exception ex) {
             STATS.updateRequest(request, Request.Status.FAILED, ex);
             LOG.error("Exception thrown in RUN_RESOSCRIPT Action. Exception is: \n" + ex.toString());
             LOG.error("Stack trace:");
             Arrays.stream(ex.getStackTrace()).forEach(stackTraceElement -> LOG.error(stackTraceElement.toString()));
           } finally {
-            LOG.info("Request " + STATS.getRequests().get(request).getStatus().toString().toLowerCase() + "!");
+            if (request != null && STATS.getRequests().size() > 0) {
+                request.setHttpResponseCode(responseCode);
+              LOG.info("Request " + STATS.getRequests().get(request).getStatus().toString().toLowerCase() + "!");
+            }
 
             if (resolvedUrl != null && resolvedUrl.length() > 0) {
               LOG.info("Elapsed Time: " + String.format("%.2f", (STATS.getRequests().get(request).getElapsedTimeMillis() / 1000.0)) + "s");
             }
-
-            LOG.info("\n\n");
           }
+          LOG.info("\n\n");
         }
 
         //stop global timer
@@ -231,73 +230,9 @@ public class App {
 
         LOG.info(DIVIDER);
         LOG.info("RESOScript Complete!");
-        LOG.info(DIVIDER + "\n\n");
-
-        int numSucceeded, numFailed, numSkipped, numIncomplete, totalRequestCount;
-        totalRequestCount = STATS.totalRequestCount();
-        numSucceeded =  STATS.getRequestCount(Request.Status.SUCCEEDED);
-        numFailed = STATS.getRequestCount(Request.Status.FAILED);
-        numSkipped = STATS.getRequestCount(Request.Status.SKIPPED);
-        numIncomplete = STATS.getRequestCount(Request.Status.STARTED);
-
-        LOG.info("Test Statistics");
-        LOG.info(DIVIDER);
-
-        LOG.info("\tTotal:            " + String.format("%1$4s", STATS.getRequests().size()));
-        LOG.info("\tSucceeded:        " + String.format("%1$4s", numSucceeded) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
-        LOG.info("\tFailed:           " + String.format("%1$4s", numFailed) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
-        LOG.info("\tSkipped:          " + String.format("%1$4s", numSkipped) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
-        LOG.info("\tIncomplete:       " + String.format("%1$4s", numIncomplete) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : ""));
-        LOG.info("Total Time Taken:   " + String.format("%.2f", (STATS.getElapsedTimeMillis() / 1000.0)) + "s" );
-        LOG.info("Average Time Taken: " + String.format("%.2f", (STATS.getElapsedTimeMillis() / 1000.0) / STATS.totalRequestCount()) + "s");
         LOG.info(DIVIDER + "\n");
 
-        Set<String> metallicLevels = new HashSet<>();
-        Set<String> capabilityNames = new HashSet<>();
-        for(Request req : STATS.getRequests().values()) {
-          metallicLevels.add(req.getMetallicLevel());
-          capabilityNames.add(req.getCapability());
-        }
-
-        // Generate Metallic Certification Report
-        LOG.info("Metallic Certification Report");
-        LOG.info(DIVIDER);
-        for (String metallicKey : metallicLevels) {
-          totalRequestCount = STATS.filterByMetallicCertification(metallicKey).size();
-          numSucceeded = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(Request.Status.SUCCEEDED)).size();
-          numFailed = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(Request.Status.FAILED)).size();
-          numSkipped = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(Request.Status.SKIPPED)).size();
-          numIncomplete = STATS.filterByMetallicCertification(metallicKey, STATS.filterByStatus(Request.Status.STARTED)).size();
-
-          LOG.info(metallicKey + (numSucceeded == totalRequestCount ? " - PASSED!" : ""));
-          LOG.info("\tTotal:            " + String.format("%1$4s", totalRequestCount) + " (" + String.format("%.2f", (100.0 * totalRequestCount) / STATS.totalRequestCount()) + "% of " + STATS.totalRequestCount() + ")");
-          LOG.info("\tSucceeded:        " + String.format("%1$4s", numSucceeded) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tFailed:           " + String.format("%1$4s", numFailed) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tSkipped:          " + String.format("%1$4s", numSkipped) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tIncomplete:       " + String.format("%1$4s", numIncomplete) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : "") + "\n");
-        }
-        LOG.info(DIVIDER + "\n");
-
-        // Generate Capabilities Report
-        LOG.info("Capabilities Certification Report");
-        LOG.info(DIVIDER);
-        for (String capabilityKey : capabilityNames) {
-          totalRequestCount = STATS.filterByCapability(capabilityKey).size();
-          numSucceeded = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(Request.Status.SUCCEEDED)).size();
-          numFailed = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(Request.Status.FAILED)).size();
-          numSkipped = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(Request.Status.SKIPPED)).size();
-          numIncomplete = STATS.filterByCapability(capabilityKey, STATS.filterByStatus(Request.Status.STARTED)).size();
-
-          LOG.info(capabilityKey + (numSucceeded == totalRequestCount ? " - PASSED!" : ""));
-          LOG.info("\tTotal:            " + String.format("%1$4s", totalRequestCount) + " (" + String.format("%.2f", (100.0 * totalRequestCount) / STATS.totalRequestCount()) + "% of " + STATS.totalRequestCount() + ")");
-          LOG.info("\tSucceeded:        " + String.format("%1$4s", numSucceeded) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tFailed:           " + String.format("%1$4s", numFailed) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tSkipped:          " + String.format("%1$4s", numSkipped) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : ""));
-          LOG.info("\tIncomplete:       " + String.format("%1$4s", numIncomplete) + (totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : ""));
-        }
-        LOG.info(DIVIDER + "\n");
-
-        LOG.info("Job Complete...Exiting!\n\n");
+        LOG.info(generateReport(STATS, metadata, directoryName + outputPath));
 
         System.exit(0); //terminate the program after the batch completes
       }
@@ -309,9 +244,7 @@ public class App {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.GET_METADATA);
 
         metadata = commander.getMetadata();
-
-        LOG.info("\nThe metadata contains the following items:");
-        prettyPrint(metadata);
+        getMetadataReport(metadata);
 
       } else if (cmd.hasOption(APP_OPTIONS.ACTIONS.VALIDATE_METADATA)) {
         APP_OPTIONS.validateAction(cmd, APP_OPTIONS.ACTIONS.VALIDATE_METADATA);
@@ -411,36 +344,143 @@ public class App {
     new HelpFormatter().printHelp("java -jar web-api-commander", options);
   }
 
+
+  /**
+   * Generates totals report from aggregates.
+   * @param totalRequestCount total request count
+   * @param numSucceeded num requests succeeded
+   * @param numFailed num requests failed
+   * @param numSkipped num requests skipped
+   * @param numIncomplete num requests incomplete
+   * @return a string containing the report.
+   */
+  private static String generateTotalsReport(int totalRequestCount, int numSucceeded, int numFailed, int numSkipped, int numIncomplete) {
+    StringBuilder reportBuilder = new StringBuilder();
+    reportBuilder.append("\n\tTotal:            ").append(String.format("%1$4s", totalRequestCount));
+    reportBuilder.append("\n\tSucceeded:        ").append(String.format("%1$4s", numSucceeded)).append(totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSucceeded) / totalRequestCount) + "%)" : "");
+    reportBuilder.append("\n\tFailed:           ").append(String.format("%1$4s", numFailed)).append(totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numFailed) / totalRequestCount) + "%)" : "");
+    reportBuilder.append("\n\tSkipped:          ").append(String.format("%1$4s", numSkipped)).append(totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numSkipped) / totalRequestCount) + "%)" : "");
+    reportBuilder.append("\n\tIncomplete:       ").append(String.format("%1$4s", numIncomplete)).append(totalRequestCount > 0 ? " (" + String.format("%.2f", (100.0 * numIncomplete) / totalRequestCount) + "%)" : "");
+    return reportBuilder.toString();
+  }
+
   /**
    * Metadata Pretty Printer
    *
    * @param metadata any metadata in Edm format
    */
-  private static void prettyPrint(Edm metadata) {
+  private static String getMetadataReport(Edm metadata) {
+    StringBuilder reportBuilder = new StringBuilder();
+
+    reportBuilder.append("\n\n" + DIVIDER);
+    reportBuilder.append("\nMetadata Report");
+    reportBuilder.append("\n" + DIVIDER);
 
     //Note: other treatments may be added to this summary info
     metadata.getSchemas().forEach(schema -> {
-      LOG.info("\nNamespace: " + schema.getNamespace());
-      LOG.info(DIVIDER);
+      reportBuilder.append("\n\nNamespace: ").append(schema.getNamespace());
+      reportBuilder.append("\n" + SMALL_DIVIDER);
 
       schema.getTypeDefinitions().forEach(a ->
-          LOG.info("\tType Definition:" + a.getFullQualifiedName().getFullQualifiedNameAsString()));
+          reportBuilder.append("\n\n\tType Definition:").append(a.getName()));
 
-      schema.getEnumTypes().forEach(a ->
-          LOG.info("\tEnum Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
+      schema.getEntityTypes().forEach(a -> {
+          reportBuilder.append("\n\n\tEntity Type: ").append(a.getName());
+          a.getKeyPropertyRefs().forEach(ref ->
+              reportBuilder.append("\n\t\tKey Field: ").append(ref.getName()));
+          a.getPropertyNames().forEach(n -> reportBuilder.append("\n\t\tName: ").append(n));
+      });
 
-      schema.getEntityTypes().forEach(a ->
-          LOG.info("\tEntity Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
+      schema.getEnumTypes().forEach(a -> {
+        reportBuilder.append("\n\n\tEnum Type: ").append(a.getName());
+        a.getMemberNames().forEach(n -> reportBuilder.append("\n\t\tName: ").append(n));
+      });
 
       schema.getComplexTypes().forEach(a ->
-          LOG.info("\tComplex Entity Type: " + a.getFullQualifiedName().getFullQualifiedNameAsString()));
+          reportBuilder.append("\n\n\tComplex Entity Type: ").append(a.getFullQualifiedName().getFullQualifiedNameAsString()));
 
       schema.getAnnotationGroups().forEach(a ->
-          LOG.info("\tAnnotations: " + a.getQualifier() + ", Target Path: " + a.getTargetPath()));
+          reportBuilder.append("\n\n\tAnnotation: ").append(a.getQualifier()).append(", Target Path: ").append(a.getTargetPath()));
 
       schema.getTerms().forEach(a ->
-          LOG.info(a.getFullQualifiedName().getFullQualifiedNameAsString()));
+          reportBuilder.append("\n\n\tTerm: ").append(a.getFullQualifiedName().getFullQualifiedNameAsString()));
     });
+
+    return reportBuilder.toString();
+  }
+
+  private static String generateReport(Stats stats, Edm metadata, String outputPath) {
+
+    StringBuilder reportBuilder = new StringBuilder();
+
+    int numSucceeded, numFailed, numSkipped, numIncomplete, requestCount;
+
+    Set<String> metallicLevels = new HashSet<>();
+    Set<String> capabilityNames = new HashSet<>();
+
+    for(Request req : stats.getRequests().values()) {
+      metallicLevels.add(req.getMetallicLevel());
+      capabilityNames.add(req.getCapability());
+    }
+
+    numSucceeded =  stats.getRequestCount(Request.Status.SUCCEEDED);
+    numFailed = stats.getRequestCount(Request.Status.FAILED);
+    numSkipped = stats.getRequestCount(Request.Status.SKIPPED);
+    numIncomplete = stats.getRequestCount(Request.Status.STARTED);
+
+    reportBuilder.append("\n\n" + DIVIDER);
+    reportBuilder.append("\nTest Statistics");
+    reportBuilder.append("\n" + DIVIDER);
+
+    reportBuilder.append(generateTotalsReport(stats.totalRequestCount(), numSucceeded, numFailed, numSkipped, numIncomplete));
+
+    reportBuilder.append("\n" + "Total Time Taken:   ").append(String.format("%.2f", (stats.getElapsedTimeMillis() / 1000.0))).append("s");
+    reportBuilder.append("\n" + "Average Time Taken: ").append(String.format("%.2f", (stats.getElapsedTimeMillis() / 1000.0) / stats.totalRequestCount())).append("s");
+
+    // Generate Metallic Certification Report
+    reportBuilder.append("\n\n" + DIVIDER);
+    reportBuilder.append("\nMetallic Certification Report");
+    reportBuilder.append("\n" + DIVIDER);
+    for (String metallicKey : metallicLevels) {
+      requestCount = stats.filterByMetallicCertification(metallicKey).size();
+      numSucceeded = stats.filterByMetallicCertification(metallicKey, stats.filterByStatus(Request.Status.SUCCEEDED)).size();
+      numFailed = stats.filterByMetallicCertification(metallicKey, stats.filterByStatus(Request.Status.FAILED)).size();
+      numSkipped = stats.filterByMetallicCertification(metallicKey, stats.filterByStatus(Request.Status.SKIPPED)).size();
+      numIncomplete = stats.filterByMetallicCertification(metallicKey, stats.filterByStatus(Request.Status.STARTED)).size();
+
+      reportBuilder.append("\n\n").append(metallicKey).append(numSucceeded > 0 && numSucceeded == (requestCount - numSkipped) ? " - PASSED!" : "");
+      reportBuilder.append(generateTotalsReport(requestCount, numSucceeded, numFailed, numSkipped, numIncomplete));
+    }
+
+    // Generate Capabilities Report
+    reportBuilder.append("\n\n" + DIVIDER);
+    reportBuilder.append("\nCapabilities Certification Report");
+    reportBuilder.append("\n" + DIVIDER);
+    for (String capabilityKey : capabilityNames) {
+      requestCount = stats.filterByCapability(capabilityKey).size();
+      numSucceeded = stats.filterByCapability(capabilityKey, stats.filterByStatus(Request.Status.SUCCEEDED)).size();
+      numFailed = stats.filterByCapability(capabilityKey, stats.filterByStatus(Request.Status.FAILED)).size();
+      numSkipped = stats.filterByCapability(capabilityKey, stats.filterByStatus(Request.Status.SKIPPED)).size();
+      numIncomplete = stats.filterByCapability(capabilityKey, stats.filterByStatus(Request.Status.STARTED)).size();
+
+      reportBuilder.append("\n\n").append(capabilityKey).append(numSucceeded > 0 && numSucceeded == (requestCount - numSkipped) ? " - PASSED!" : "");
+      reportBuilder.append(generateTotalsReport(requestCount, numSucceeded, numFailed, numSkipped, numIncomplete));
+    }
+    reportBuilder.append("\n" + DIVIDER + "\n");
+
+    String reportContent = reportBuilder.toString();
+
+    try {
+      FileWriter writer = new FileWriter(outputPath + File.separator + "CertificationReport.txt" );
+      writer.write(reportContent);
+      writer.write(getMetadataReport(metadata));
+      writer.flush();
+      writer.close();
+    } catch (Exception ex) {
+      LOG.error("Could not create Certification Report!");
+      LOG.error(ex.toString());
+    }
+    return reportBuilder.toString();
   }
 
   /**

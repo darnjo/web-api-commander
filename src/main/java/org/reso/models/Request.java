@@ -29,7 +29,7 @@ public class Request {
     private Request request;
     private Status status;
     private Date startDate, endDate;
-    private String responseCode;
+    private Integer httpResponseCode;
     private Exception failedRequestException;
 
 
@@ -82,12 +82,12 @@ public class Request {
         this.failedRequestException = failedRequestException;
     }
 
-    public String getResponseCode() {
-        return responseCode;
+    public Integer getHttpResponseCode() {
+        return httpResponseCode;
     }
 
-    public void setResponseCode(String responseCode) {
-        this.responseCode = responseCode;
+    public void setHttpResponseCode(Integer httpResponseCode) {
+        this.httpResponseCode = httpResponseCode;
     }
 
     public enum Status {

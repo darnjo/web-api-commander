@@ -1,5 +1,6 @@
 package org.reso.commander;
 
+import com.fasterxml.jackson.databind.ser.std.ByteArraySerializer;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.utils.URIBuilder;
@@ -14,6 +15,7 @@ import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
+import org.apache.olingo.client.core.edm.xml.ClientCsdlEdmx;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.auth.OAuth2HttpClientFactory;
@@ -168,10 +170,19 @@ public class Commander {
     return metadata;
   }
 
+  public Edm getMetadata(String pathToXmlMetadata) {
+    try {
+      return client.getReader().readMetadata(new FileInputStream(pathToXmlMetadata));
+    } catch (FileNotFoundException fex) {
+      LOG.error(fex.toString());
+    }
+    return null;
+  }
+
   public void saveMetadata(Edm metadata, String outputFileName) {
     try {
       FileWriter writer = new FileWriter(outputFileName);
-      client.getSerializer(ContentType.APPLICATION_ATOM_XML).write(writer, metadata);
+      client.getSerializer(ContentType.APPLICATION_XML).write(writer, metadata);
     } catch (Exception ex) {
       LOG.error(ex.getStackTrace());
     }
@@ -186,7 +197,7 @@ public class Commander {
     XMLMetadata xmlMetadata = null;
     try {
       ByteArrayInputStream inputStream = new ByteArrayInputStream(edm.toString().getBytes());
-      xmlMetadata = client.getDeserializer(ContentType.APPLICATION_ATOM_XML).toMetadata(inputStream);
+      xmlMetadata = client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(inputStream);
     } catch (Exception ex) {
       LOG.error(ex.getStackTrace());
     }
