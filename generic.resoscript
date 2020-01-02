@@ -117,7 +117,7 @@
     <Parameter Name="DateField" Value="ModificationTimestamp" />
     <Parameter Name="DateTimeValue" Value="2018-12-31T23:55:55-09:00" />
     <Parameter Name="DateValue" Value="2018-12-31" />
-    <Parameter Name="YearValue" Value="2018" / >
+    <Parameter Name="YearValue" Value="2018" />
     <Parameter Name="MonthValue" Value="12" />
     <Parameter Name="DayValue" Value="31" />
     <Parameter Name="TimestampField" Value="ModificationTimestamp" />
