@@ -1,11 +1,10 @@
 package org.reso.commander;
 
-import com.fasterxml.jackson.databind.ser.std.ByteArraySerializer;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.utils.URIBuilder;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.olingo.client.api.ODataClient;
 import org.apache.olingo.client.api.communication.ODataClientErrorException;
 import org.apache.olingo.client.api.communication.response.ODataRawResponse;
@@ -15,7 +14,6 @@ import org.apache.olingo.client.api.domain.ClientEntitySet;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
-import org.apache.olingo.client.core.edm.xml.ClientCsdlEdmx;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.auth.OAuth2HttpClientFactory;
@@ -43,7 +41,7 @@ import java.util.function.Function;
  */
 public class Commander {
   //one instance of client per Commander. See Builder
-  private static ODataClient client;
+  private ODataClient client;
   private boolean useEdmEnabledClient;
 
   String serviceRoot, bearerToken, clientId, clientSecret, authorizationUri, tokenUri, redirectUri, scope;
@@ -54,6 +52,14 @@ public class Commander {
   //TODO move to utils class
   public static final int OK = 0;
   public static final int NOT_OK = 1;
+
+  public ODataClient getClient() {
+    return this.client;
+  }
+  
+  public void setClient(ODataClient client) {
+    this.client = client;
+  }
 
   /**
    * Builder pattern for creating Commander instances.
@@ -135,16 +141,16 @@ public class Commander {
 
       LOG.debug("\nUsing EdmEnabledClient: " + useEdmEnabledClient + "...");
       if (useEdmEnabledClient) {
-        client = ODataClientFactory.getEdmEnabledClient(serviceRoot);
+        commander.setClient(ODataClientFactory.getEdmEnabledClient(serviceRoot));
       } else {
-        client = ODataClientFactory.getClient();
+        commander.setClient(ODataClientFactory.getClient());
       }
 
       if (commander.isOAuthClient) {
-        client.getConfiguration().setHttpClientFactory(new OAuth2HttpClientFactory(
+        commander.getClient().getConfiguration().setHttpClientFactory(new OAuth2HttpClientFactory(
                 clientId, clientSecret, authorizationUri, tokenUri, redirectUri, scope));
       } else if (commander.isTokenClient) {
-        client.getConfiguration().setHttpClientFactory(new TokenHttpClientFactory(bearerToken));
+        commander.getClient().getConfiguration().setHttpClientFactory(new TokenHttpClientFactory(bearerToken));
       }
       return commander;
     }

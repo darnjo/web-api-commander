@@ -1,22 +1,53 @@
-<?xml version="1.0" encoding="utf-8" ?> <!--TODO: add XML DTD-->
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  Generic RESOScript Test File - DTD Follows
 
-<!-- 
-  Generic RESOScript Test File
-
-  NOTES: 
-    * Anything marked REQUIRED should be filled in. 
+  NOTES:
+    * Anything marked REQUIRED should be filled in.
     * Anything not market REQUIRED shouldn't have to be changed.
-    * Some items are market OPTIONAL.
+    * Some items are marked OPTIONAL.
     * Any item that has a blank Url will be skipped (which will be printed in the results).
 
-  Contact info@reso.org with further questions.
--->
+    Contact info@reso.org with further questions.
+ -->
+<!DOCTYPE OutputScript [
+  <!ELEMENT OutputScript (ClientSettings|Parameters|Requests)*>
+  <!ELEMENT ClientSettings (WebAPIURI|AuthenticationType|BearerToken|ClientScope|Version|Preauthenticate)*>
+  <!ELEMENT WebAPIURI (#PCDATA)>
+  <!ELEMENT AuthenticationType (#PCDATA)>
+  <!ELEMENT BearerToken (#PCDATA)>
+  <!ELEMENT ClientScope (#PCDATA)>
+  <!ELEMENT Version (#PCDATA)>
+  <!ELEMENT Preauthenticate (#PCDATA)>
+  <!ELEMENT Parameters (Parameter)*>
+  <!ELEMENT Parameter (#PCDATA)>
+  <!ATTLIST Parameter
+    Name CDATA #REQUIRED
+    Value CDATA #REQUIRED>
+  <!ELEMENT Requests (Request)*>
+  <!ELEMENT Request (Assertions)*>
+  <!ATTLIST Request
+    AssertResponseCode CDATA #IMPLIED
+    Capability CDATA #REQUIRED
+    MetallicLevel CDATA #REQUIRED
+    OutputFile CDATA #REQUIRED
+    RequirementId CDATA #REQUIRED
+    TestDescription CDATA #REQUIRED
+    Url CDATA #REQUIRED
+    WebAPIReference CDATA #REQUIRED>
+  <!ELEMENT Assertions (AssertPresent|AssertBinaryOpComparison)*>
+  <!ELEMENT AssertPresent (#PCDATA)>
+  <!ELEMENT AssertBinaryOpComparison (LVal|Op|RVal)*>
+  <!ELEMENT LVal (#PCDATA)>
+  <!ELEMENT Op (#PCDATA)>
+  <!ELEMENT RVal (#PCDATA)>
+  ]>
 
 <OutputScript>
+  <!-- TODO: deprecate ClientSettings and move them to Parameters -->
   <ClientSettings>
-
     <!-- URLS -->
-    <WebAPIURI><!--REQUIRED: Your Web API Service Root goes here --></WebAPIURI>
+    <WebAPIURI><!--REQUIRED: URI of your Web API Service Root goes here --></WebAPIURI>
 
     <!-- Credentials -->
     <AuthenticationType>Authorization Code</AuthenticationType>
@@ -24,15 +55,16 @@
     <ClientScope>all</ClientScope>
     <Version>Web API/1.0</Version>
     <Preauthenticate>FALSE</Preauthenticate>
-
   </ClientSettings>
 
   <Parameters>
 
-    <!-- URI of OData metadata endpoint-->
-    <Parameter Name="EndpointMetadata" Value="$metadata" />
+    <!-- REQUIRED: The DataSystems endpoint being tested
+    NOTE: the FULL DataSystems URL is required as it might not be relative to the Service Root.
+          This will likely change in future revisions. -->
+    <Parameter Name="EndpointDataSystems" Value="REQUIRED: YOUR DATA SYSTEMS ENDPOINT GOES HERE" />
 
-    <!-- REQUIRED: The endpoint resource being tested-->
+    <!-- REQUIRED: The name of the resource being tested -->
     <Parameter Name="EndpointResource" Value="Properties" />
 
     <!-- HTTP Code Testing -->
@@ -117,7 +149,7 @@
     <Parameter Name="DateField" Value="ModificationTimestamp" />
     <Parameter Name="DateTimeValue" Value="2018-12-31T23:55:55-09:00" />
     <Parameter Name="DateValue" Value="2018-12-31" />
-    <Parameter Name="YearValue" Value="2018" / >
+    <Parameter Name="YearValue" Value="2018" />
     <Parameter Name="MonthValue" Value="12" />
     <Parameter Name="DayValue" Value="31" />
     <Parameter Name="TimestampField" Value="ModificationTimestamp" />
@@ -142,12 +174,15 @@
     <Parameter Name="RequiredParameters" Value="" />
     <Parameter Name="RequiredParametersFilter" Value="" />
 
+    <!-- Intentionally Blank. Skipped at the moment but referenced in a test. -->
+    <Parameter Name="QueryTooComplexUri" Value="" />
+
   </Parameters>
 
   <Requests>
 
-  <!-- NOTE: for this test, we always assume that /$metadata is relative to the Web API Service Root, referred to as WebAPIURI here -->
-  <Request
+    <!-- NOTE: for this test, we always assume that /$metadata is relative to the Web API Service Root, referred to as WebAPIURI here -->
+    <Request
       TestDescription="Metadata Endpoint"
       RequirementId="REQ-WA103-END3"
       MetallicLevel="Core"
@@ -164,7 +199,7 @@
       Capability="Core Support"
       WebAPIReference=""
       OutputFile="REQ-WA103-END2_DataSystem.json"
-      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointDataSystems*"
+      Url="*Parameter_EndpointDataSystems*"
     />
 
     <Request
@@ -197,8 +232,16 @@
       Capability="Query functions"
       WebAPIReference="2.4.1"
       OutputFile="REQ-WA103-QR1.json"
-      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*(*Parameter_UniqueIDValue*)?$select=*Parameter_UniqueID*"
-    />
+      Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*(*Parameter_UniqueIDValue*)?$select=*Parameter_UniqueID*">
+      <Assertions>
+        <AssertPresent/>
+        <AssertBinaryOpComparison>
+          <LVal>*Parameter_UniqueID*</LVal>
+          <Op>Equals</Op>
+          <RVal>*Parameter_UniqueIDValue*</RVal>
+        </AssertBinaryOpComparison>
+      </Assertions>
+    </Request>
 
     <Request
       TestDescription="Query Support: $select"

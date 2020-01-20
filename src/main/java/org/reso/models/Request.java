@@ -154,6 +154,13 @@ public class Request {
         return requests;
     }
 
+    private int deserializeTests(Node node) {
+      int numTests = 0;
+
+
+      return numTests;
+    }
+
     public String getRequirementId() {
         return requirementId;
     }
