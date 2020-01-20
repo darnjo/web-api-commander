@@ -6,7 +6,6 @@ Feature: Web API Server 1.0.2 Certification
     Given a RESOScript file was provided
     And Client Settings and Parameters were read from the file
 
-
   Scenario: CORE - Request and Validate Server Metadata
     Given an OData client was successfully created from the given RESOScript
     When a metadata request is made relative to the given Web API service root

@@ -36,19 +36,23 @@ public class WebAPIServer_1_0_2 implements En {
   private static Settings settings;
 
   private String serviceRoot, bearerToken, clientId, clientSecret, authorizationUri, tokenUri, redirectUri, scope;
-  private String resoScriptFileName;
+  private String pathToRESOScript;
 
   public WebAPIServer_1_0_2() {
 
     AtomicReference<Commander> commander = new AtomicReference<>();
     //Background
     Given("^a RESOScript file was provided$", () -> {
-      resoScriptFileName = System.getProperty("pathToRESOScript");
-      LOG.debug("Loading RESOScript: " + resoScriptFileName);
+      if (pathToRESOScript == null) {
+        pathToRESOScript = System.getProperty("pathToRESOScript");
+      }
+      LOG.debug("Using RESOScript: " + pathToRESOScript);
     });
     And("^Client Settings and Parameters were read from the file$", () -> {
-      settings = Settings.loadFromRESOScript(new File(resoScriptFileName));
-      LOG.debug("RESOScript loaded successfully!");
+      if (settings == null) {
+        settings = Settings.loadFromRESOScript(new File(System.getProperty("pathToRESOScript")));
+        LOG.debug("RESOScript loaded successfully!");
+      }
     });
 
     Given("^an OData client was successfully created from the given RESOScript$", () -> {
@@ -102,6 +106,8 @@ public class WebAPIServer_1_0_2 implements En {
 
       assertTrue(commander.get().validateMetadata(metadata));
     });
+
+    //TODO: add saving of Metadata file
   }
 
   private static class REQUESTS {

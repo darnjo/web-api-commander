@@ -34,8 +34,17 @@ dependencies {
   compile 'io.rest-assured:rest-assured:4.1.2'
   compile 'io.rest-assured:json-path:4.2.0'
   compile 'io.rest-assured:json-schema-validator:4.2.0'
-  compile 'io.cucumber:cucumber-java8:4.8.0'
-  compile 'io.cucumber:cucumber-junit:4.8.0'
+
+  compile 'io.cucumber:cucumber-java8:5.0.0-RC4'
+  compile 'io.cucumber:cucumber-junit:5.0.0-RC4'
+
+  compile 'net.masterthought:cucumber-reporting:5.0.1'
+}
+
+configurations {
+  cucumberRuntime {
+    extendsFrom compile
+  }
 }
 
 jar {
@@ -56,4 +65,23 @@ jar {
 tasks.withType(JavaCompile) {
   options.compilerArgs << '-Xlint:unchecked'
   options.deprecation = true
+}
+
+task testWebApiServer_1_0_2() {
+  dependsOn jar
+  doLast {
+    javaexec {
+      main = "io.cucumber.core.cli.Main"
+      classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
+      args = [
+          '--strict',
+          '--plugin',
+          'pretty',
+          '--glue',
+          'org.reso.certification.stepdefs#WebAPIServer_1_0_2',
+          'src/main/java/org/reso/certification/features'
+      ]
+      systemProperties = System.getProperties()
+    }
+  }
 }
