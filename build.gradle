@@ -77,6 +77,8 @@ task testWebApiServer_1_0_2() {
           '--strict',
           '--plugin',
           'pretty',
+          '--plugin',
+          'html:build/test-report',
           '--glue',
           'org.reso.certification.stepdefs#WebAPIServer_1_0_2',
           'src/main/java/org/reso/certification/features'

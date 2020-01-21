@@ -1,6 +1,8 @@
 package org.reso.commander;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.input.ReaderInputStream;
+import org.apache.commons.io.output.WriterOutputStream;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.logging.log4j.LogManager;
@@ -11,9 +13,12 @@ import org.apache.olingo.client.api.communication.response.ODataRawResponse;
 import org.apache.olingo.client.api.communication.response.ODataRetrieveResponse;
 import org.apache.olingo.client.api.domain.ClientEntity;
 import org.apache.olingo.client.api.domain.ClientEntitySet;
+import org.apache.olingo.client.api.edm.xml.Edmx;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
 import org.apache.olingo.client.core.ODataClientFactory;
 import org.apache.olingo.client.core.domain.ClientEntitySetImpl;
+import org.apache.olingo.client.core.edm.ClientCsdlXMLMetadata;
+import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.edm.Edm;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.auth.OAuth2HttpClientFactory;
@@ -56,7 +61,7 @@ public class Commander {
   public ODataClient getClient() {
     return this.client;
   }
-  
+
   public void setClient(ODataClient client) {
     this.client = client;
   }
@@ -245,6 +250,22 @@ public class Commander {
     return false;
   }
 
+  public boolean validateMetadata(InputStream inputStream) {
+    if (!validateXML(inputStream)) return false;
+
+    try {
+      inputStream.reset();
+    } catch (IOException ioex) {
+      LOG.error("ERROR in validateMetadata!");
+      return false;
+    }
+
+    // deserialize metadata from given file
+    XMLMetadata metadata =
+        client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(inputStream);
+    return validateMetadata(metadata);
+  }
+
   /**
    * Validates the given metadata contained in the given file path.
    *
@@ -252,21 +273,14 @@ public class Commander {
    * @return true if the metadata is valid and false otherwise.
    */
   public boolean validateMetadata(String pathToEdmx) {
-    boolean isValid = false;
     try {
-      if (validateXML(pathToEdmx)) {
         // deserialize metadata from given file
-        XMLMetadata metadata =
-            client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(new FileInputStream(pathToEdmx));
-
-        isValid = validateMetadata(metadata);
-      }
-
+        return validateMetadata(new FileInputStream(pathToEdmx));
     } catch (Exception ex) {
       LOG.error("Error occurred while validating metadata.\nPath was:" + pathToEdmx);
       LOG.error(ex.getMessage());
     }
-    return isValid;
+    return false;
   }
 
   /**
@@ -275,23 +289,31 @@ public class Commander {
    * @return true if the XML could be parsed, false otherwise.
    */
   private static boolean validateXML(String filename) {
-    boolean isValid = false;
+    try {
+      new FileInputStream(filename);
+    } catch (FileNotFoundException fex) {
+        LOG.error(fex);
+    }
+    return false;
+  }
 
+  private static boolean validateXML(InputStream inputStream) {
     SAXParserFactory factory = SAXParserFactory.newInstance();
     factory.setValidating(false);
     factory.setNamespaceAware(true);
 
     try {
       SAXParser parser = factory.newSAXParser();
-
       XMLReader reader = parser.getXMLReader();
       reader.setErrorHandler(new SimpleErrorHandler());
-      reader.parse(new InputSource(filename));
-      isValid = true;
+      InputSource inputSource = new InputSource();
+      inputSource.setByteStream(inputStream);
+      reader.parse(inputSource);
+      return true;
     } catch (Exception ex) {
       LOG.error(ex);
     }
-    return isValid;
+    return false;
   }
 
   public static class SimpleErrorHandler implements ErrorHandler {
@@ -311,7 +333,7 @@ public class Commander {
   /**
    * Prepares a URI for an OData request
    */
-  private URI prepareURI(String uriString) {
+  public static URI prepareURI(String uriString) {
     try {
         URL url = new URL(uriString);
         URIBuilder uriBuilder = new URIBuilder();
