@@ -250,7 +250,6 @@ If you have input files you may need to mount your filesystem into the docker co
 ```
 docker run -it -v $PWD:/app darnjo/web-api-commander --validateMetadata --inputFile <pathInContainer>
 ```
-=======
 
 ---
 
