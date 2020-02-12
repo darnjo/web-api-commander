@@ -232,7 +232,7 @@ RESOScript files contain zero or more Settings, Parameters, and Requests. For ex
 ```
 
 
-## Docker Image
+## Docker
 
 A [Dockerfile](./Dockerfile) has been provided to dockerize the application for use in various. The following command will build an image for you:
 
