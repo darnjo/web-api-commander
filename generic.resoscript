@@ -63,9 +63,9 @@
     NOTE: the FULL DataSystems URL is required as it might not be relative to the Service Root.
           This will likely change in future revisions. -->
     <Parameter Name="EndpointDataSystem" Value="REQUIRED: YOUR DATA SYSTEMS ENDPOINT GOES HERE" />
-    
+
     <!-- REQUIRED: The name of the resource being tested -->
-    <Parameter Name="EndpointResource" Value="Properties" />
+    <Parameter Name="EndpointResource" Value="REQUIRED: YOUR RESOURCE GOES HERE, FOR EXAMPLE 'Property'" />
 
     <!-- HTTP Code Testing -->
 

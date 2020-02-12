@@ -67,6 +67,7 @@ tasks.withType(JavaCompile) {
   options.deprecation = true
 }
 
+// task for Web API Server Testing - this is what should be run in the command line
 task testWebApiServer_1_0_2() {
   dependsOn jar
   doLast {
