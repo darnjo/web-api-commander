@@ -231,7 +231,6 @@ RESOScript files contain zero or more Settings, Parameters, and Requests. For ex
    </OutputScript>
 ```
 
-
 ## Docker
 
 A [Dockerfile](./Dockerfile) has been provided to dockerize the application. This can be used for CI/CD environments such as Jenkins or TravisCI. The following command will build an image for you:
@@ -251,6 +250,7 @@ If you have input files you may need to mount your filesystem into the docker co
 ```
 docker run -it -v $PWD:/app darnjo/web-api-commander --validateMetadata --inputFile <pathInContainer>
 ```
+=======
 
 ---
 
