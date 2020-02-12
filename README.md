@@ -234,7 +234,7 @@ RESOScript files contain zero or more Settings, Parameters, and Requests. For ex
 
 ## Docker
 
-A [Dockerfile](./Dockerfile) has been provided to dockerize the application for use in various. The following command will build an image for you:
+A [Dockerfile](./Dockerfile) has been provided to dockerize the application. This can be used for CI/CD environments such as Jenkins or TravisCI. The following command will build an image for you:
 
 ```
 docker build -t darnjo/web-api-command .
