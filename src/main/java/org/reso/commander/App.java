@@ -149,8 +149,8 @@ public class App {
         //put in local directory rather than relative to where the input file is
         String directoryName = System.getProperty(OUTPUT_DIR),
             outputPath = inputFilename
-            .substring(inputFilename.contains(File.separator) ? inputFilename.lastIndexOf(File.separator) : 0, inputFilename.length())
-            .replace(RESOSCRIPT_EXTENSION, "") + "-" + getTimestamp(new Date());
+                .substring(inputFilename.contains(File.separator) ? inputFilename.lastIndexOf(File.separator) : 0, inputFilename.length())
+                .replace(RESOSCRIPT_EXTENSION, "") + "-" + getTimestamp(new Date());
 
         String resolvedUrl = null;
 
@@ -198,7 +198,7 @@ public class App {
               LOG.info("Response Code: " + responseCode);
 
 
-            if (responseCode == HttpStatus.SC_OK) {
+              if (responseCode == HttpStatus.SC_OK) {
                 STATS.updateRequest(request, Request.Status.SUCCEEDED);
               }
 
@@ -399,10 +399,10 @@ public class App {
           reportBuilder.append("\n\n\tType Definition:").append(a.getName()));
 
       schema.getEntityTypes().forEach(a -> {
-          reportBuilder.append("\n\n\tEntity Type: ").append(a.getName());
-          a.getKeyPropertyRefs().forEach(ref ->
-              reportBuilder.append("\n\t\tKey Field: ").append(ref.getName()));
-          a.getPropertyNames().forEach(n -> reportBuilder.append("\n\t\tName: ").append(n));
+        reportBuilder.append("\n\n\tEntity Type: ").append(a.getName());
+        a.getKeyPropertyRefs().forEach(ref ->
+            reportBuilder.append("\n\t\tKey Field: ").append(ref.getName()));
+        a.getPropertyNames().forEach(n -> reportBuilder.append("\n\t\tName: ").append(n));
       });
 
       schema.getEnumTypes().forEach(a -> {
@@ -534,7 +534,7 @@ public class App {
      *               <p>
      *               If the given action doesn't validate, then an error message will be printed and the application will exit.
      */
-     static void validateAction(CommandLine cmd, String action) {
+    static void validateAction(CommandLine cmd, String action) {
       String validationResponse = null;
 
       if (action.matches(ACTIONS.RUN_RESOSCRIPT)) {
@@ -641,7 +641,7 @@ public class App {
           .addOption(Option.builder().argName("g").longOpt(ACTIONS.GET_ENTITIES)
               .desc("Executes GET on <uri> using the given <bearerToken> and optional <serviceRoot> when " +
                   "--useEdmEnabledClient is specified. Optionally takes a <limit>, which will fetch that number " +
-                      "of results. Pass --limit -1 to fetch all results.").build())
+                  "of results. Pass --limit -1 to fetch all results.").build())
           .addOption(Option.builder().argName("v").longOpt(ACTIONS.VALIDATE_METADATA)
               .desc("Validates previously-fetched metadata in the <inputFile> path.").build())
           .addOption(Option.builder().argName("w").longOpt(ACTIONS.SAVE_RAW_GET_REQUEST)

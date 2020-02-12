@@ -136,10 +136,10 @@ public class Commander {
 
       //items required for OAuth client
       commander.isOAuthClient =
-            clientId != null && clientId.length() > 0 &&
-            clientSecret != null && clientSecret.length() > 0 &&
-            authorizationUri != null && authorizationUri.length() > 0 &&
-            tokenUri != null && tokenUri.length() > 0;
+          clientId != null && clientId.length() > 0 &&
+              clientSecret != null && clientSecret.length() > 0 &&
+              authorizationUri != null && authorizationUri.length() > 0 &&
+              tokenUri != null && tokenUri.length() > 0;
 
       //items required for token client
       commander.isTokenClient = bearerToken != null && bearerToken.length() > 0;
@@ -153,7 +153,7 @@ public class Commander {
 
       if (commander.isOAuthClient) {
         commander.getClient().getConfiguration().setHttpClientFactory(new OAuth2HttpClientFactory(
-                clientId, clientSecret, authorizationUri, tokenUri, redirectUri, scope));
+            clientId, clientSecret, authorizationUri, tokenUri, redirectUri, scope));
       } else if (commander.isTokenClient) {
         commander.getClient().getConfiguration().setHttpClientFactory(new TokenHttpClientFactory(bearerToken));
       }
@@ -271,8 +271,8 @@ public class Commander {
    */
   public boolean validateMetadata(String pathToEdmx) {
     try {
-        // deserialize metadata from given file
-        return validateMetadata(new FileInputStream(pathToEdmx));
+      // deserialize metadata from given file
+      return validateMetadata(new FileInputStream(pathToEdmx));
     } catch (Exception ex) {
       LOG.error("Error occurred while validating metadata.\nPath was:" + pathToEdmx);
       LOG.error(ex.getMessage());
@@ -289,7 +289,7 @@ public class Commander {
     try {
       return validateXML(new FileInputStream(filename));
     } catch (FileNotFoundException fex) {
-        LOG.error(fex);
+      LOG.error(fex);
     }
     return false;
   }
@@ -332,14 +332,14 @@ public class Commander {
    */
   public static URI prepareURI(String uriString) {
     try {
-        URL url = new URL(uriString);
-        URIBuilder uriBuilder = new URIBuilder();
-        uriBuilder.setScheme(url.getProtocol());
+      URL url = new URL(uriString);
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder.setScheme(url.getProtocol());
 
-        uriBuilder.setHost(url.getHost());
-        if (url.getPath() != null) uriBuilder.setPath(url.getPath());
-        if (url.getQuery() != null) uriBuilder.setCustomQuery(url.getQuery());
-        return uriBuilder.build();
+      uriBuilder.setHost(url.getHost());
+      if (url.getPath() != null) uriBuilder.setPath(url.getPath());
+      if (url.getQuery() != null) uriBuilder.setCustomQuery(url.getQuery());
+      return uriBuilder.build();
     } catch (Exception ex) {
       LOG.error("ERROR in prepareURI: " + ex.toString());
     }
