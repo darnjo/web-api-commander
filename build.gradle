@@ -18,27 +18,27 @@ repositories {
 }
 
 dependencies {
-  compile 'com.google.guava:guava:27.0.1-jre'
+  compile 'com.google.guava:guava:28.2-jre'
 
   compile 'commons-cli:commons-cli:1.4'
 
-  compile 'org.apache.logging.log4j:log4j-api:2.12.1'
-  compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.12.1'
-  compile 'org.apache.logging.log4j:log4j-1.2-api:2.12.1'
-  compile 'org.apache.logging.log4j:log4j-core:2.12.1'
+  compile 'org.apache.logging.log4j:log4j-api:2.13.0'
+  compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.13.0'
+  compile 'org.apache.logging.log4j:log4j-1.2-api:2.13.0'
+  compile 'org.apache.logging.log4j:log4j-core:2.13.0'
 
-  compile 'org.apache.olingo:odata-client-api:4.6.0'
-  compile 'org.apache.olingo:odata-commons-core:4.6.0'
-  compile 'org.apache.olingo:odata-client-core:4.6.0'
+  compile 'org.apache.olingo:odata-client-api:4.7.1'
+  compile 'org.apache.olingo:odata-commons-core:4.7.1'
+  compile 'org.apache.olingo:odata-client-core:4.7.1'
 
-  compile 'io.rest-assured:rest-assured:4.1.2'
+  compile 'io.rest-assured:rest-assured:4.2.0'
   compile 'io.rest-assured:json-path:4.2.0'
   compile 'io.rest-assured:json-schema-validator:4.2.0'
 
-  compile 'io.cucumber:cucumber-java8:5.0.0-RC4'
-  compile 'io.cucumber:cucumber-junit:5.0.0-RC4'
+  compile 'io.cucumber:cucumber-java8:5.2.0'
+  compile 'io.cucumber:cucumber-junit:5.2.0'
 
-  compile 'net.masterthought:cucumber-reporting:5.0.1'
+  compile 'net.masterthought:cucumber-reporting:5.0.2'
 }
 
 configurations {

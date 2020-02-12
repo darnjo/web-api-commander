@@ -115,6 +115,12 @@ public class WebAPIServer_1_0_2 implements En {
       String jsonString = convertInputStreamToString(oDataRawResponse.get().getRawResponse());
       LOG.debug("Server response is: " + jsonString);
     });
+    Given("^the url for the server's DataSystems endpoint$", () -> {
+    });
+    And("^the results are valid JSON$", () -> {
+    });
+    And("^the results match the expected DataSystems schema$", () -> {
+    });
   }
 
   private static class REQUESTS {

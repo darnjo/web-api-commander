@@ -75,7 +75,7 @@ public class Request {
     }
 
     public long getElapsedTimeMillis() {
-        return endDate.getTime() - startDate.getTime();
+        return endDate != null && startDate != null ? endDate.getTime() - startDate.getTime() : 0L;
     }
 
     public void setFailedRequestException(Exception failedRequestException) {

@@ -149,7 +149,7 @@ public class App {
         //put in local directory rather than relative to where the input file is
         String directoryName = System.getProperty(OUTPUT_DIR),
             outputPath = inputFilename
-            .substring(inputFilename.lastIndexOf(File.separator), inputFilename.length())
+            .substring(inputFilename.contains(File.separator) ? inputFilename.lastIndexOf(File.separator) : 0, inputFilename.length())
             .replace(RESOSCRIPT_EXTENSION, "") + "-" + getTimestamp(new Date());
 
         String resolvedUrl = null;

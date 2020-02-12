@@ -62,8 +62,8 @@
     <!-- REQUIRED: The DataSystems endpoint being tested
     NOTE: the FULL DataSystems URL is required as it might not be relative to the Service Root.
           This will likely change in future revisions. -->
-    <Parameter Name="EndpointDataSystems" Value="REQUIRED: YOUR DATA SYSTEMS ENDPOINT GOES HERE" />
-
+    <Parameter Name="EndpointDataSystem" Value="REQUIRED: YOUR DATA SYSTEMS ENDPOINT GOES HERE" />
+    
     <!-- REQUIRED: The name of the resource being tested -->
     <Parameter Name="EndpointResource" Value="Properties" />
 
@@ -199,7 +199,7 @@
       Capability="Core Support"
       WebAPIReference=""
       OutputFile="REQ-WA103-END2_DataSystem.json"
-      Url="*Parameter_EndpointDataSystems*"
+      Url="*Parameter_EndpointDataSystem*"
     />
 
     <Request

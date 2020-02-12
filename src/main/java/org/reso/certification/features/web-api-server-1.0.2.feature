@@ -20,4 +20,10 @@ Feature: Web API Server 1.0.2 Certification
     Then the server responds with a status code of 200
     And the results contain at most Parameter_TopCount records with data present in the fields in Parameter_SelectList
 
-
+  @REQ_WA103_END2 @core
+  Scenario: REQ-WA103-END2 - CORE - Data Systems Endpoint test
+    Given the url for the server's DataSystems endpoint
+    When the request is issued against the Web API Server's Parameter_EndpointResource
+    Then the server responds with a status code of 200
+    And the results are valid JSON
+    And the results match the expected DataSystems schema

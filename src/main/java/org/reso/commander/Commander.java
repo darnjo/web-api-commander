@@ -251,19 +251,16 @@ public class Commander {
   }
 
   public boolean validateMetadata(InputStream inputStream) {
-    if (!validateXML(inputStream)) return false;
-
     try {
-      inputStream.reset();
-    } catch (IOException ioex) {
-      LOG.error("ERROR in validateMetadata!");
-      return false;
-    }
+      // deserialize metadata from given file
+      XMLMetadata metadata =
+          client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(inputStream);
+      return validateMetadata(metadata);
 
-    // deserialize metadata from given file
-    XMLMetadata metadata =
-        client.getDeserializer(ContentType.APPLICATION_XML).toMetadata(inputStream);
-    return validateMetadata(metadata);
+    } catch (Exception ex) {
+      LOG.error("ERROR in validateMetadata! " + ex.toString() );
+    }
+    return false;
   }
 
   /**
@@ -290,7 +287,7 @@ public class Commander {
    */
   private static boolean validateXML(String filename) {
     try {
-      new FileInputStream(filename);
+      return validateXML(new FileInputStream(filename));
     } catch (FileNotFoundException fex) {
         LOG.error(fex);
     }
