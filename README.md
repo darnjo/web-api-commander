@@ -234,10 +234,11 @@ RESOScript files contain zero or more Settings, Parameters, and Requests. For ex
 
 ## Docker Image
 
-A [Dockerfile](./Dockerfile) has been provided to dockerize the application for use in various 
+A [Dockerfile](./Dockerfile) has been provided to dockerize the application for use in various. The following command will build an image for you:
 
 ```
-docker build -t darnjo/web-api-command
+docker build -t darnjo/web-api-command .
+```
 
 The usage for the docker containeris the same for `web-api-commander.jar` presented above.
 
