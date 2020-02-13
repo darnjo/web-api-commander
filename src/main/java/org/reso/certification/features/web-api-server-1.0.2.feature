@@ -9,22 +9,22 @@ Feature: Web API Server 1.0.2 Certification
 
   @REQ-WA103-END3 @core
   Scenario: REQ-WA103-QR3 - CORE - Request and Validate Server Metadata
-    When a metadata request is made relative to the given service root in ClientSettings_WebAPIURI
+    When a GET request is made to the resolved Url in "REQ-WA103-END3"
     Then the server responds with a status code of 200
+    And the response is valid XML
     And the metadata returned is valid
 
   @REQ-WA103-QR3 @gold
   Scenario: REQ-WA103-QR3 - CORE - Query Support: $select
-    Given a case-sensitive OData $select list consisting of Parameter_SelectList in the given request
-    When the request is issued against the Web API Server's Parameter_EndpointResource
+    When a GET request is made to the resolved Url in "REQ-WA103-QR3"
     Then the server responds with a status code of 200
-    And the results contain at most Parameter_TopCount records
-    And data are present in fields contained within Parameter_SelectList
+    And the results contain at most "Parameter_TopCount" records
+    And data are present in fields contained within "Parameter_SelectList"
+    And data in "Parameter_FilterNumericField" are greater than "Parameter_FilterNumericValueLow"
 
   @REQ_WA103_END2 @core
   Scenario: REQ-WA103-END2 - CORE - Data Systems Endpoint test
-    Given the url for the server's DataSystem endpoint
-    When the request is issued against the DataSystem endpoint
+    When a GET request is made to the resolved Url in "REQ-WA103-END2"
     Then the server responds with a status code of 200
-    And the results are valid JSON
-    And the results match the expected DataSystem schema
+    And the response is valid JSON
+    And the results match the expected DataSystem JSON schema

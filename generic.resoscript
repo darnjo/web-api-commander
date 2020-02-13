@@ -232,16 +232,9 @@
           Capability="Query functions"
           WebAPIReference="2.4.1"
           OutputFile="REQ-WA103-QR1.json"
-          Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*(*Parameter_UniqueIDValue*)?$select=*Parameter_UniqueID*">
-            <Assertions>
-                <AssertPresent/>
-                <AssertBinaryOpComparison>
-                    <LVal>*Parameter_UniqueID*</LVal>
-                    <Op>Equals</Op>
-                    <RVal>*Parameter_UniqueIDValue*</RVal>
-                </AssertBinaryOpComparison>
-            </Assertions>
-        </Request>
+          Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*(*Parameter_UniqueIDValue*)?$select=*Parameter_UniqueID*"
+          AssertResponseCode="200"
+        />
 
         <Request
           TestDescription="Query Support: $select"

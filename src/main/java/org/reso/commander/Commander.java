@@ -1,5 +1,6 @@
 package org.reso.commander;
 
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.io.output.WriterOutputStream;
@@ -38,6 +39,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * URI
@@ -280,21 +283,11 @@ public class Commander {
     return false;
   }
 
-  /**
-   * Uses XML parser (SAX) to validate the given filename.
-   * @param filename the filename containing the XML to validate.
-   * @return true if the XML could be parsed, false otherwise.
-   */
-  private static boolean validateXML(String filename) {
-    try {
-      return validateXML(new FileInputStream(filename));
-    } catch (FileNotFoundException fex) {
-      LOG.error(fex);
-    }
-    return false;
+  public static boolean validateXML(String xmlString) {
+    return validateXML(new ByteArrayInputStream(xmlString.getBytes(UTF_8)));
   }
 
-  private static boolean validateXML(InputStream inputStream) {
+  public static boolean validateXML(InputStream inputStream) {
     SAXParserFactory factory = SAXParserFactory.newInstance();
     factory.setValidating(false);
     factory.setNamespaceAware(true);

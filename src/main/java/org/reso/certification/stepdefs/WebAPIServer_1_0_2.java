@@ -1,16 +1,23 @@
 package org.reso.certification.stepdefs;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.fge.jackson.JacksonUtils;
 import io.cucumber.java8.En;
 
-import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.response.ValidatableResponse;
 import io.restassured.specification.RequestSpecification;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.olingo.client.api.ODataClient;
+import org.apache.olingo.client.api.ODataClientBuilder;
 import org.apache.olingo.client.api.communication.request.retrieve.ODataRawRequest;
 import org.apache.olingo.client.api.communication.response.ODataRawResponse;
+import org.apache.olingo.client.api.edm.xml.XMLMetadata;
+import org.apache.olingo.client.api.serialization.ODataBinder;
+import org.apache.olingo.client.api.serialization.ODataDeserializer;
+import org.apache.olingo.client.core.ODataClientImpl;
+import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.commander.Commander;
 import org.reso.models.ClientSettings;
 import org.reso.models.Request;
@@ -22,8 +29,6 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.restassured.RestAssured.given;
-import static io.restassured.RestAssured.when;
 import static io.restassured.path.json.JsonPath.from;
 import static org.junit.Assert.*;
 
@@ -40,8 +45,22 @@ public class WebAPIServer_1_0_2 implements En {
 
   public WebAPIServer_1_0_2() {
 
+    //the following items are reused by subsequent tests
+    //TODO: make the tests more functional in the sense that they don't use local variables
     AtomicReference<Commander> commander = new AtomicReference<>();
-    //Background
+    AtomicReference<ODataRawResponse> oDataRawResponse = new AtomicReference<>();
+    AtomicReference<Request> request = new AtomicReference<>();
+    AtomicReference<ODataRawRequest> rawRequest = new AtomicReference<>();
+    AtomicReference<String> responseDataAsString = new AtomicReference<>();
+    AtomicReference<Integer> numResults = new AtomicReference<>();
+
+    //TODO: split test glue code into separate files after the dust settles. Sections separated by comments for now ---v
+
+    //================================================================================================================//
+
+    /*
+     * Background
+     */
     Given("^a RESOScript file was provided$", () -> {
       if (pathToRESOScript == null) {
         pathToRESOScript = System.getProperty("pathToRESOScript");
@@ -54,7 +73,6 @@ public class WebAPIServer_1_0_2 implements En {
       }
       LOG.info("RESOScript loaded successfully!");
     });
-
     Given("^an OData client was successfully created from the given RESOScript$", () -> {
       serviceRoot = settings.getClientSettings().get(ClientSettings.WEB_API_URI);
 
@@ -87,66 +105,38 @@ public class WebAPIServer_1_0_2 implements En {
           .build());
     });
 
-    //the following items are reused by subsequent tests
-    AtomicReference<ODataRawResponse> oDataRawResponse = new AtomicReference<>();
-    AtomicReference<Request> request = new AtomicReference<>();
-    AtomicReference<ODataRawRequest> rawRequest = new AtomicReference<>();
-    AtomicReference<String> jsonResponseData = new AtomicReference<>();
-    AtomicReference<Integer> numResults = new AtomicReference<>();
 
-    //REQ-WA103-END3
-    When("^a metadata request is made relative to the given service root in ClientSettings_WebAPIURI$", () -> {
-      request.set(Settings.resolveParameters(settings.getRequests().get(REQUESTS.WEB_API_1_0_2.REQ_WA_103_END_3), settings));
-
-      LOG.info("Request URL: " + request.get().getUrl());
-
-      rawRequest.set(commander.get().getClient().getRetrieveRequestFactory().getRawRequest(Commander.prepareURI(request.get().getUrl())));
-      oDataRawResponse.set(rawRequest.get().execute());
-    });
-    Then("^the server responds with a status code of (\\d+)$", (Integer code) -> {
-      int responseCode = oDataRawResponse.get().getStatusCode();
-      LOG.info("Response code is: " + responseCode);
-      assertEquals(code.intValue(), responseCode);
-    });
+    /*
+     * REQ-WA103-END3
+     */
     And("^the metadata returned is valid$", () -> {
-      boolean isValid = commander.get().validateMetadata((oDataRawResponse.get().getRawResponse()));
+      //in this case we need to interpret the result as XML Metadata from the given response string
+      XMLMetadata metadata
+          = commander.get().getClient().getDeserializer(ContentType.APPLICATION_XML).toMetadata(new ByteArrayInputStream(responseDataAsString.get().getBytes()));
+      boolean isValid = commander.get().validateMetadata(metadata);
       LOG.info("Metadata is: " + (isValid ? "valid" : "invalid"));
       assertTrue(isValid);
     });
 
 
-    //REQ-WA103-QR3
-    Given("^a case-sensitive OData \\$select list consisting of Parameter_SelectList in the given request$", () -> {
-      request.set(Settings.resolveParameters(settings.getRequests().get(REQUESTS.WEB_API_1_0_2.REQ_WA_103_QR_3), settings));
-      LOG.info("Request URL: " + request.get().getUrl());
-      assertTrue(request.get().getUrl().contains("$select=" + settings.getParameters().getValue("SelectList")));
-    });
-    When("^the request is issued against the Web API Server's Parameter_EndpointResource$", () -> {
-      URI requestUri = Commander.prepareURI(request.get().getUrl());
-
-      LOG.info("Request is: " + requestUri.toString());
-
-      rawRequest.set(commander.get().getClient().getRetrieveRequestFactory().getRawRequest(requestUri));
-      oDataRawResponse.set(rawRequest.get().execute());
-    });
-    And("^the results contain at most Parameter_TopCount records$", () -> {
-      jsonResponseData.set(convertInputStreamToString(oDataRawResponse.get().getRawResponse()));
-      LOG.info("Server response is: " + jsonResponseData.get());
-
-      //TODO: create constants for parameter or take as args to this function
-      List<String> items = from(jsonResponseData.get()).getList("value");
+    /*
+     * REQ-WA103-QR3
+     */
+    And("^the results contain at most \"([^\"]*)\" records$", (String topCountSetting) -> {
+      List<String> items = from(responseDataAsString.get()).getList("value");
       numResults.set(items.size());
 
-      LOG.info("Number of values returned: " + numResults.get());
-      assertTrue(numResults.get() <= Integer.parseInt(settings.getParameters().getValue("TopCount")));
+      int topCount = Integer.parseInt(Utils.resolveValue(topCountSetting, settings));
+      LOG.info("Number of values returned: " + numResults.get() + ", top count is: " + topCount);
+
+      assertTrue(numResults.get() > 0 && numResults.get() <= topCount);
     });
-    And("^data are present in fields contained within Parameter_SelectList$", () -> {
-      List<String> fieldList = new ArrayList<>();
-      Arrays.stream(settings.getParameters().getValue("SelectList").split(",")).forEach(field -> fieldList.add(field));
-
+    And("^data are present in fields contained within \"([^\"]*)\"$", (String selectListSetting) -> {
       AtomicInteger numFieldsWithData = new AtomicInteger();
+      List<String> fieldList = new ArrayList<>(Arrays.asList(Utils.resolveValue(selectListSetting, settings).split(",")));
 
-      from(jsonResponseData.get()).getList("value", HashMap.class).forEach(item -> {
+      //iterate over the items and count the number of fields with data to determine whether there are data present
+      from(responseDataAsString.get()).getList("value", HashMap.class).forEach(item -> {
         if (item != null) {
           fieldList.forEach(field -> {
             if (item.get(field) != null) {
@@ -156,32 +146,106 @@ public class WebAPIServer_1_0_2 implements En {
         }
       });
 
-      LOG.info("numResults: " + numResults.get());
-      LOG.info("numFields: " + fieldList.size());
-      LOG.info("numFieldsWithData: " + numFieldsWithData.get());
-      LOG.info("percent field fill: " + ((numResults.get() * fieldList.size()) / (1.0 * numFieldsWithData.get()) * 100) + "%");
+      LOG.info("Number of Results: " + numResults.get());
+      LOG.info("Number of Fields: " + fieldList.size());
+      LOG.info("Field with Data: " + numFieldsWithData.get());
+      LOG.info("Percent Fill: " + ((numResults.get() * fieldList.size()) / (1.0 * numFieldsWithData.get()) * 100) + "%");
       assertTrue(numFieldsWithData.get() > 0);
     });
 
-
-    //REQ-WA103-END2
-    Given("^the url for the server's DataSystem endpoint$", () -> {
-      request.set(Settings.resolveParameters(settings.getRequests().get(REQUESTS.WEB_API_1_0_2.REQ_WA103_END2), settings));
-      String dataSystemUrlString = request.get().getUrl();
-      LOG.info("Data System URL: " + dataSystemUrlString);
-      assertTrue(dataSystemUrlString.length() > 0);
+    /*
+     * REQ-WA103-END2
+     */
+    And("^the response is valid JSON$", () -> {
+      oDataRawResponse.get().getRawResponse().toString();
+      assertTrue(Utils.isValidJson(responseDataAsString.get()));
     });
-    When("^the request is issued against the DataSystem endpoint$", () -> {
+    And("^the results match the expected DataSystem JSON schema$", () -> {
+      //TODO - need to add JSON Schema for DataSystem
+    });
+
+
+    //==================================================================================================================
+    // Common Methods
+    //==================================================================================================================
+
+    /*
+     * GET request by requirementId (see generic.resoscript)
+     */
+    When("^a GET request is made to the resolved Url in \"([^\"]*)\"$", (String requirementId) -> {
+      request.set(Settings.resolveParameters(settings.getRequests().get(requirementId), settings));
+
+      LOG.info("Request URL: " + request.get().getUrl());
+
       rawRequest.set(commander.get().getClient().getRetrieveRequestFactory().getRawRequest(Commander.prepareURI(request.get().getUrl())));
       oDataRawResponse.set(rawRequest.get().execute());
-      jsonResponseData.set(convertInputStreamToString(oDataRawResponse.get().getRawResponse()));
-      LOG.info("Response is: " + jsonResponseData.get());
+      responseDataAsString.set(convertInputStreamToString(oDataRawResponse.get().getRawResponse()));
+
+      LOG.info("Server response is: " + responseDataAsString.get());
     });
-    And("^the results are valid JSON$", () -> {
-      assertTrue(JacksonUtils.getReader().readTree(jsonResponseData.get()).size() > 0);
+
+    /*
+     * Assert response code
+     */
+    Then("^the server responds with a status code of (\\d+)$", (Integer code) -> {
+      int responseCode = oDataRawResponse.get().getStatusCode();
+      LOG.info("Response code is: " + responseCode);
+      assertEquals(code.intValue(), responseCode);
     });
-    And("^the results match the expected DataSystem schema$", () -> {
+
+    /*
+     * Assert greater than: lValFromItem > rValFromSetting
+     */
+    And("^data in \"([^\"]*)\" are greater than \"([^\"]*)\"$", (String lValFromItem, String rValFromSetting) -> {
+      from(responseDataAsString.get()).getList("value", HashMap.class).forEach(item -> {
+        Integer resolvedLVal = new Integer(item.get(Utils.resolveValue(lValFromItem, settings)).toString()),
+            resolvedRVal = new Integer(Utils.resolveValue(rValFromSetting, settings));
+        assertTrue( resolvedLVal > resolvedRVal );
+      });
     });
+
+    /*
+     * validate XML wrapper
+     */
+    And("^the response is valid XML$", () -> {
+      LOG.info("Response is valid XML! " + responseDataAsString.get());
+      assertTrue(Commander.validateXML(responseDataAsString.get()));
+    });
+
+  }
+
+  private static class Utils {
+    /**
+     * Tests the given string to see if it's valid JSON
+     * @param jsonString
+     * @return true if valid, false otherwise. Throws {@link IOException}
+     */
+    private static boolean isValidJson(String jsonString) {
+      try {
+        final ObjectMapper mapper = new ObjectMapper();
+        mapper.readTree(jsonString);
+        return true;
+      } catch (IOException e) {
+        return false;
+      }
+    }
+
+    /**
+     * Resolves the given item into a value
+     * @param item an item which can either be a reference to a parameter, client setting, or it can be an actual value.
+     * @return the resolved setting or item if it's not a client setting or parameter
+     */
+    private static String resolveValue(String item, Settings settings) {
+      if (item.contains("Parameter_")) {
+        return settings.getParameters().getValue(item.replace("Parameter_", ""));
+      }
+
+      if (item.contains("ClientSettings_")) {
+        return settings.getClientSettings().get(item.replace("ClientSettings_", ""));
+      }
+
+      return item;
+    }
   }
 
   private static class REQUESTS {
