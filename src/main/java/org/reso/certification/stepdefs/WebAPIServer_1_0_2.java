@@ -1,22 +1,15 @@
 package org.reso.certification.stepdefs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.fge.jackson.JacksonUtils;
 import io.cucumber.java8.En;
-
 import io.restassured.response.Response;
 import io.restassured.response.ValidatableResponse;
 import io.restassured.specification.RequestSpecification;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.olingo.client.api.ODataClient;
-import org.apache.olingo.client.api.ODataClientBuilder;
 import org.apache.olingo.client.api.communication.request.retrieve.ODataRawRequest;
 import org.apache.olingo.client.api.communication.response.ODataRawResponse;
 import org.apache.olingo.client.api.edm.xml.XMLMetadata;
-import org.apache.olingo.client.api.serialization.ODataBinder;
-import org.apache.olingo.client.api.serialization.ODataDeserializer;
-import org.apache.olingo.client.core.ODataClientImpl;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.reso.commander.Commander;
 import org.reso.models.ClientSettings;
@@ -24,13 +17,16 @@ import org.reso.models.Request;
 import org.reso.models.Settings;
 
 import java.io.*;
-import java.net.URI;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.restassured.path.json.JsonPath.from;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class WebAPIServer_1_0_2 implements En {
   private static final Logger LOG = LogManager.getLogger(WebAPIServer_1_0_2.class);
@@ -51,12 +47,10 @@ public class WebAPIServer_1_0_2 implements En {
     AtomicReference<ODataRawResponse> oDataRawResponse = new AtomicReference<>();
     AtomicReference<Request> request = new AtomicReference<>();
     AtomicReference<ODataRawRequest> rawRequest = new AtomicReference<>();
-    AtomicReference<String> responseDataAsString = new AtomicReference<>();
+    AtomicReference<String> responseData = new AtomicReference<>();
     AtomicReference<Integer> numResults = new AtomicReference<>();
 
-    //TODO: split test glue code into separate files after the dust settles. Sections separated by comments for now ---v
-
-    //================================================================================================================//
+    //TODO: split test glue code into separate files after the dust settles. Sections separated by comments for now...
 
     /*
      * Background
@@ -112,7 +106,9 @@ public class WebAPIServer_1_0_2 implements En {
     And("^the metadata returned is valid$", () -> {
       //in this case we need to interpret the result as XML Metadata from the given response string
       XMLMetadata metadata
-          = commander.get().getClient().getDeserializer(ContentType.APPLICATION_XML).toMetadata(new ByteArrayInputStream(responseDataAsString.get().getBytes()));
+          = commander.get().getClient().getDeserializer(ContentType.APPLICATION_XML)
+            .toMetadata(new ByteArrayInputStream(responseData.get().getBytes()));
+
       boolean isValid = commander.get().validateMetadata(metadata);
       LOG.info("Metadata is: " + (isValid ? "valid" : "invalid"));
       assertTrue(isValid);
@@ -123,7 +119,7 @@ public class WebAPIServer_1_0_2 implements En {
      * REQ-WA103-QR3
      */
     And("^the results contain at most \"([^\"]*)\" records$", (String topCountSetting) -> {
-      List<String> items = from(responseDataAsString.get()).getList("value");
+      List<String> items = from(responseData.get()).getList("value");
       numResults.set(items.size());
 
       int topCount = Integer.parseInt(Utils.resolveValue(topCountSetting, settings));
@@ -136,7 +132,7 @@ public class WebAPIServer_1_0_2 implements En {
       List<String> fieldList = new ArrayList<>(Arrays.asList(Utils.resolveValue(selectListSetting, settings).split(",")));
 
       //iterate over the items and count the number of fields with data to determine whether there are data present
-      from(responseDataAsString.get()).getList("value", HashMap.class).forEach(item -> {
+      from(responseData.get()).getList("value", HashMap.class).forEach(item -> {
         if (item != null) {
           fieldList.forEach(field -> {
             if (item.get(field) != null) {
@@ -156,14 +152,22 @@ public class WebAPIServer_1_0_2 implements En {
     /*
      * REQ-WA103-END2
      */
-    And("^the response is valid JSON$", () -> {
-      oDataRawResponse.get().getRawResponse().toString();
-      assertTrue(Utils.isValidJson(responseDataAsString.get()));
-    });
     And("^the results match the expected DataSystem JSON schema$", () -> {
       //TODO - need to add JSON Schema for DataSystem
     });
 
+    /*
+     * REQ-WA103-QR1
+     */
+    And("^the provided \"([^\"]*)\" is returned in the \"([^\"]*)\" field$", (String uniqueIdValueSetting, String uniqueIdSetting) -> {
+      String expectedValue = Utils.resolveValue(uniqueIdValueSetting, settings),
+          resolvedValue = from(responseData.get()).get(Utils.resolveValue(uniqueIdSetting, settings));
+
+      LOG.info("Expected Value is:" + expectedValue);
+      LOG.info("Resolved value is:" + resolvedValue);
+
+      assertEquals(expectedValue, resolvedValue);
+    });
 
     //==================================================================================================================
     // Common Methods
@@ -179,9 +183,10 @@ public class WebAPIServer_1_0_2 implements En {
 
       rawRequest.set(commander.get().getClient().getRetrieveRequestFactory().getRawRequest(Commander.prepareURI(request.get().getUrl())));
       oDataRawResponse.set(rawRequest.get().execute());
-      responseDataAsString.set(convertInputStreamToString(oDataRawResponse.get().getRawResponse()));
+      responseData.set(convertInputStreamToString(oDataRawResponse.get().getRawResponse()));
 
-      LOG.info("Server response is: " + responseDataAsString.get());
+      LOG.info("Request succeeded..." + responseData.get().getBytes().length
+          + " bytes received.");
     });
 
     /*
@@ -195,12 +200,15 @@ public class WebAPIServer_1_0_2 implements En {
 
     /*
      * Assert greater than: lValFromItem > rValFromSetting
+     *
+     * TODO: add general op expression parameter rather than creating individual comparators
      */
     And("^data in \"([^\"]*)\" are greater than \"([^\"]*)\"$", (String lValFromItem, String rValFromSetting) -> {
-      from(responseDataAsString.get()).getList("value", HashMap.class).forEach(item -> {
-        Integer resolvedLVal = new Integer(item.get(Utils.resolveValue(lValFromItem, settings)).toString()),
-            resolvedRVal = new Integer(Utils.resolveValue(rValFromSetting, settings));
-        assertTrue( resolvedLVal > resolvedRVal );
+      from(responseData.get()).getList("value", HashMap.class).forEach(item -> {
+        Integer lVal = new Integer(item.get(Utils.resolveValue(lValFromItem, settings)).toString()),
+                rVal = new Integer(Utils.resolveValue(rValFromSetting, settings));
+
+        assertTrue( lVal > rVal );
       });
     });
 
@@ -208,10 +216,20 @@ public class WebAPIServer_1_0_2 implements En {
      * validate XML wrapper
      */
     And("^the response is valid XML$", () -> {
-      LOG.info("Response is valid XML! " + responseDataAsString.get());
-      assertTrue(Commander.validateXML(responseDataAsString.get()));
+      assertTrue(Commander.validateXML(responseData.get()));
+
+      LOG.info("Response is valid XML!");
     });
 
+    /*
+     * validate JSON wrapper
+     */
+    And("^the response is valid JSON$", () -> {
+      oDataRawResponse.get().getRawResponse().toString();
+      assertTrue(Utils.isValidJson(responseData.get()));
+
+      LOG.info("Response is valid JSON!");
+    });
   }
 
   private static class Utils {
