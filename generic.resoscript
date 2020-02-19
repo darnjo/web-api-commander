@@ -250,7 +250,7 @@
           TestDescription="Query Support: $top"
           RequirementId="REQ-WA103-QR4"
           MetallicLevel="Core"
-          Capability="Client pageability ($top, $skip)"
+          Capability="Client paging ($top, $skip)"
           WebAPIReference="2.4.2"
           OutputFile="REQ-WA103-QR4.json"
           Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*"
@@ -263,7 +263,7 @@
           Capability="Client pageability ($top, $skip)"
           WebAPIReference="2.4.2"
           OutputFile="REQ-WA103-QR5.json"
-          Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*&amp;$skip=*Parameter_TopCount*"
+          Url="*ClientSettings_WebAPIURI*/*Parameter_EndpointResource*?$top=*Parameter_TopCount*&amp;$select=*Parameter_SelectList*&amp;$filter=*Parameter_FilterNumericField* gt *Parameter_FilterNumericValueLow**Parameter_RequiredParameters*"
         />
 
         <Request

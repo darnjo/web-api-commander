@@ -1,5 +1,6 @@
 package org.reso.certification.stepdefs;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cucumber.java8.En;
 import io.restassured.response.Response;
@@ -17,6 +18,7 @@ import org.reso.models.Request;
 import org.reso.models.Settings;
 
 import java.io.*;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,8 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.restassured.path.json.JsonPath.from;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class WebAPIServer_1_0_2 implements En {
   private static final Logger LOG = LogManager.getLogger(WebAPIServer_1_0_2.class);
@@ -41,16 +42,16 @@ public class WebAPIServer_1_0_2 implements En {
 
   public WebAPIServer_1_0_2() {
 
-    //the following items are reused by subsequent tests
-    //TODO: make the tests more functional in the sense that they don't use local variables
+    //TODO: split into separate test files and parallelize to remove the need for Atomic "globals"
     AtomicReference<Commander> commander = new AtomicReference<>();
     AtomicReference<ODataRawResponse> oDataRawResponse = new AtomicReference<>();
     AtomicReference<Request> request = new AtomicReference<>();
-    AtomicReference<ODataRawRequest> rawRequest = new AtomicReference<>();
     AtomicReference<String> responseData = new AtomicReference<>();
-    AtomicReference<Integer> numResults = new AtomicReference<>();
+    AtomicReference<String> initialResponseData = new AtomicReference<>(); //used if two result sets need to be compared
+    AtomicReference<ODataRawRequest> rawRequest = new AtomicReference<>();
 
-    //TODO: split test glue code into separate files after the dust settles. Sections separated by comments for now...
+    //container to hold retrieved metadata for later comparisons
+    AtomicReference<XMLMetadata> xmlMetadata = new AtomicReference<>();
 
     /*
      * Background
@@ -101,39 +102,63 @@ public class WebAPIServer_1_0_2 implements En {
 
 
     /*
+     * REQ-WA103-END2
+     */
+    And("^the results match the expected DataSystem JSON schema$", () -> {
+      //TODO - need to add JSON Schema for DataSystem
+    });
+
+
+    /*
      * REQ-WA103-END3
      */
     And("^the metadata returned is valid$", () -> {
-      //in this case we need to interpret the result as XML Metadata from the given response string
-      XMLMetadata metadata
-          = commander.get().getClient().getDeserializer(ContentType.APPLICATION_XML)
-            .toMetadata(new ByteArrayInputStream(responseData.get().getBytes()));
+      //store the metadata for later comparisons
+      xmlMetadata.set(commander.get().getClient().getDeserializer(ContentType.APPLICATION_XML)
+            .toMetadata(new ByteArrayInputStream(responseData.get().getBytes())));
 
-      boolean isValid = commander.get().validateMetadata(metadata);
-      LOG.info("Metadata is: " + (isValid ? "valid" : "invalid"));
+      boolean isValid = commander.get().validateMetadata(xmlMetadata.get());
+      LOG.info("Metadata is " + (isValid ? "valid" : "invalid") + "!");
       assertTrue(isValid);
     });
 
 
     /*
-     * REQ-WA103-QR3
+     * REQ-WA103-QR1
      */
-    And("^the results contain at most \"([^\"]*)\" records$", (String topCountSetting) -> {
-      List<String> items = from(responseData.get()).getList("value");
-      numResults.set(items.size());
+    And("^the provided \"([^\"]*)\" is returned in the \"([^\"]*)\" field$", (String parameterUniqueIdValue, String parameterUniqueId) -> {
 
-      int topCount = Integer.parseInt(Utils.resolveValue(topCountSetting, settings));
-      LOG.info("Number of values returned: " + numResults.get() + ", top count is: " + topCount);
+      String expectedValueAsString = Utils.resolveValue(parameterUniqueIdValue, settings),
+          resolvedValueAsString = from(responseData.get()).get(Utils.resolveValue(parameterUniqueId, settings));
 
-      assertTrue(numResults.get() > 0 && numResults.get() <= topCount);
+      //string values in the RESOScript have single quotes inside of double quotes
+      //OData already checks the response data against the metadata that's being advertised,
+      //so we can just do string comparisons
+      if (expectedValueAsString.contains("'")) {
+        expectedValueAsString = expectedValueAsString.replace("'", "");
+        assertEquals(expectedValueAsString, resolvedValueAsString);
+      } else {
+        assertEquals(expectedValueAsString, resolvedValueAsString);
+      }
+
+      LOG.info("Expected Value is:" + expectedValueAsString);
+      LOG.info("Resolved value is:" + resolvedValueAsString);
     });
-    And("^data are present in fields contained within \"([^\"]*)\"$", (String selectListSetting) -> {
+
+
+    /*
+     * REQ-WA103-QR3 - $select
+     */
+    And("^data are present in fields contained within \"([^\"]*)\"$", (String parameterSelectList) -> {
       AtomicInteger numFieldsWithData = new AtomicInteger();
-      List<String> fieldList = new ArrayList<>(Arrays.asList(Utils.resolveValue(selectListSetting, settings).split(",")));
+      List<String> fieldList = new ArrayList<>(Arrays.asList(Utils.resolveValue(parameterSelectList, settings).split(",")));
+
+      AtomicInteger numResults = new AtomicInteger();
 
       //iterate over the items and count the number of fields with data to determine whether there are data present
       from(responseData.get()).getList("value", HashMap.class).forEach(item -> {
         if (item != null) {
+          numResults.getAndIncrement();
           fieldList.forEach(field -> {
             if (item.get(field) != null) {
               numFieldsWithData.getAndIncrement();
@@ -149,25 +174,48 @@ public class WebAPIServer_1_0_2 implements En {
       assertTrue(numFieldsWithData.get() > 0);
     });
 
-    /*
-     * REQ-WA103-END2
-     */
-    And("^the results match the expected DataSystem JSON schema$", () -> {
-      //TODO - need to add JSON Schema for DataSystem
-    });
 
     /*
-     * REQ-WA103-QR1
+     * REQ-WA103-QR4 - $top
+     * $top=*Parameter_TopCount*
      */
-    And("^the provided \"([^\"]*)\" is returned in the \"([^\"]*)\" field$", (String uniqueIdValueSetting, String uniqueIdSetting) -> {
-      String expectedValue = Utils.resolveValue(uniqueIdValueSetting, settings),
-          resolvedValue = from(responseData.get()).get(Utils.resolveValue(uniqueIdSetting, settings));
+    And("^the results contain at most \"([^\"]*)\" records$", (String parameterTopCount) -> {
+      List<String> items = from(responseData.get()).getList("value");
+      AtomicInteger numResults = new AtomicInteger(items.size());
 
-      LOG.info("Expected Value is:" + expectedValue);
-      LOG.info("Resolved value is:" + resolvedValue);
+      int topCount = Integer.parseInt(Utils.resolveValue(parameterTopCount, settings));
+      LOG.info("Number of values returned: " + numResults.get() + ", top count is: " + topCount);
 
-      assertEquals(expectedValue, resolvedValue);
+      assertTrue(numResults.get() > 0 && numResults.get() <= topCount);
     });
+
+
+    /*
+     * REQ-WA103-QR5 - $skip
+     * $skip=*Parameter_TopCount*
+     */
+    And("^a GET request is made to the resolved Url in \"([^\"]*)\" with \\$skip=\"([^\"]*)\"$", (String requirementId, String parameterTopCount) -> {
+      int skipCount = Integer.parseInt(Utils.resolveValue(parameterTopCount, settings));
+      LOG.info("Skip count is: " + skipCount);
+
+      //preserve initial response data for later comparisons
+      initialResponseData.set(responseData.get());
+
+      //TODO: convert to OData filter factory
+      URI requestUri = Commander.prepareURI(Settings.resolveParameters(settings.getRequests().get(requirementId), settings).getUrl() + "&$skip=" + skipCount);
+      LOG.info("Request URI: " + (requestUri != null ? requestUri.toString() : ""));
+      rawRequest.set(commander.get().getClient().getRetrieveRequestFactory().getRawRequest(requestUri));
+      oDataRawResponse.set(rawRequest.get().execute());
+      responseData.set(convertInputStreamToString(oDataRawResponse.get().getRawResponse()));
+    });
+    And("^data in the \"([^\"]*)\" fields are different in the second request than in the first$", (String parameterUniqueId) -> {
+      ObjectMapper mapper = new ObjectMapper();
+      JsonNode n1 = mapper.readTree(initialResponseData.get());
+      JsonNode n2 = mapper.readTree(responseData.get());
+
+      assertFalse(n1.equals(n2));
+    });
+
 
     //==================================================================================================================
     // Common Methods
@@ -177,6 +225,20 @@ public class WebAPIServer_1_0_2 implements En {
      * GET request by requirementId (see generic.resoscript)
      */
     When("^a GET request is made to the resolved Url in \"([^\"]*)\"$", (String requirementId) -> {
+      URI requestUri = Commander.prepareURI(Settings.resolveParameters(settings.getRequests().get(requirementId), settings).getUrl());
+      LOG.info("Request URI: " + requestUri);
+
+      rawRequest.set(commander.get().getClient().getRetrieveRequestFactory().getRawRequest(requestUri));
+      oDataRawResponse.set(rawRequest.get().execute());
+      responseData.set(convertInputStreamToString(oDataRawResponse.get().getRawResponse()));
+
+      LOG.info("Request succeeded..." + responseData.get().getBytes().length + " bytes received.");
+    });
+
+    /*
+     * GET request by requirementId with an additional Uri fragment for the base Uri
+     */
+    When("^a GET request is made to the resolved Url in \"([^\"]*)\" with \"([^\"]*)\"$", (String requirementId, String parameterTopCount) -> {
       request.set(Settings.resolveParameters(settings.getRequests().get(requirementId), settings));
 
       LOG.info("Request URL: " + request.get().getUrl());
@@ -185,8 +247,7 @@ public class WebAPIServer_1_0_2 implements En {
       oDataRawResponse.set(rawRequest.get().execute());
       responseData.set(convertInputStreamToString(oDataRawResponse.get().getRawResponse()));
 
-      LOG.info("Request succeeded..." + responseData.get().getBytes().length
-          + " bytes received.");
+      LOG.info("Request succeeded..." + responseData.get().getBytes().length + " bytes received.");
     });
 
     /*
@@ -264,8 +325,20 @@ public class WebAPIServer_1_0_2 implements En {
 
       return item;
     }
+
+    /**
+     * Returns the String data contained within a given ODataRawResponse.
+     * @param oDataRawResponse the response to convert.
+     * @return the response stream as a string.
+     */
+    private static String getResponseData(ODataRawResponse oDataRawResponse) {
+      return convertInputStreamToString(oDataRawResponse.getRawResponse());
+    }
   }
 
+  /**
+   * These are now passed dynamically but we may want to verify the choices. Leave in for now.
+   */
   private static class REQUESTS {
     private static class WEB_API_1_0_2 {
       private static final String REQ_WA_103_END_3 = "REQ-WA103-END3";
@@ -274,10 +347,15 @@ public class WebAPIServer_1_0_2 implements En {
     }
   }
 
+  /**
+   * Converts the given inputStream to a string.
+   * @param inputStream the input stream to convert.
+   * @return the string value contained in the stream.
+   */
   private static String convertInputStreamToString(InputStream inputStream) {
     InputStreamReader isReader = new InputStreamReader(inputStream);
     BufferedReader reader = new BufferedReader(isReader);
-    StringBuffer sb = new StringBuffer();
+    StringBuilder sb = new StringBuilder();
     String str;
     try {
       while((str = reader.readLine())!= null){
